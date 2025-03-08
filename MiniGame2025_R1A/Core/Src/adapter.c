@@ -81,8 +81,8 @@ void Initialize(){
 	UARTInit(&huart4,115200, ENABLE, 5,0);
 	UARTInit(&huart5,115200, ENABLE, 5,0);
 
-//	QEIInit(&htim1,5,5);
-//	QEIInit(&htim4,5,5);
+	QEIInit(&htim1,5,5);
+	QEIInit(&htim4,5,5);
 //	QEIInit(&htim8,5,5);
 
 	PWMTimeBaseInit(&htim1, 2000, 66);

@@ -183,7 +183,7 @@ BDC_t BDC1, BDC2, BDC3, BDC4, BDC5, BDC6, BDC7, BDC8;
 uint8_t insData_receive[2];
 PSxBT_t ps4;
 MODN_t Modn;
-ABT_t filter;
+ABT_t filter, tt_lower_data, tt_upper_data;
 ADC_t adc;
 LASER_t r_laser,l_laser;
 KALMANFILTER_t kf_adc_r,kf_adc_l,kf_pres;
@@ -273,9 +273,19 @@ typedef enum{
 /* self define receiveing data*/
 SERVO_t servo_red, servo_blk_1, servo_blk_2;
 uint8_t buffer_g[25];
-PID_t w1, w2, w3, w4, imu_rotate, x_axis, y_axis;
+PID_t w1, w2, w3, w4, imu_rotate, ltt, utt;
 
-float Err_angle, F_angle, Err_x, F_x, Err_y, F_y;
+#define SAMPLE_TIME 0.005f
+#define MIN_POSCNT	500
+
+float Err_l, F_l, Err_u, F_u;
+float tt_lower, tt_upper;
+
+
+float tt_lowerEncData, tt_upperEncData;
+float tt_lowerPos, tt_upperPos;			/* Position, ABT output, pos PID feedback */
+float tt_lowerVel, tt_upperVel;			/* Velocity, ABT output */
+float tt_lowerAcc, tt_upperAcc;			/* Acceleration, ABT output*/
 
 
 void CAN_PROCESS(PACKET_t packet_src);

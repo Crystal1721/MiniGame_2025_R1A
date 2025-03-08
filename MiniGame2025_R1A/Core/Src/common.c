@@ -6,8 +6,6 @@
 #include "common.h"
 #include "math.h"
 
-//#define black
-
 void set(void) {
 
 	Initialize();
@@ -19,22 +17,17 @@ void set(void) {
 	MODNWheelVelInit(&v1, &v2, &v3, &v4, &Modn);
 	PSxSlaveInit(&ps4,&hi2c1);
 
-
 //	R6091U_Init(&imu,&huart2);
 //	R6091U_Handler(&imu);
 	PSx_SlaveHandler(&ps4);
 
-	PIDSourceInit (&Err_angle, &F_angle, &imu_rotate);
-	PIDDelayInit (&imu_rotate);
-	PIDGainInit(0.02, 1.0, 1/360.0, 360.0, 0.115, 0.001, 0.0, 2*3.1415926*10.0,  &imu_rotate);
+	PIDSourceInit (&Err_l, &F_l, &ltt);
+	PIDDelayInit (&ltt);
+	PIDGainInit(0.02, 1.0, 1/20000.0, 1.0, 0.0, 0.0, 0.0, 2*3.1415926*10.0,  &ltt);
 
-	PIDSourceInit (&Err_x, &F_x, &x_axis);
-	PIDDelayInit (&x_axis);
-	PIDGainInit(0.02, 1.0, 1/1.0, 1.0, 3.5, 0.55, 0.0, 2*3.1415926*10.0,  &x_axis);
-
-	PIDSourceInit (& Err_y, &F_y,  &y_axis);
-	PIDDelayInit (&y_axis);
-	PIDGainInit(0.02, 1.0, 1/1.0, 1.0, 4.7, 0.55, 0.0, 2*3.1415926*10.0,  &y_axis);
+	PIDSourceInit (&Err_u, &F_u,  &utt);
+	PIDDelayInit (&utt);
+	PIDGainInit(0.02, 1.0, 1/20000.0, 1.0, 0.0, 0.0, 0.0, 2*3.1415926*10.0,  &utt);
 
 	ServoxInit(&servo_blk_1, &htim3, GPIOA, GPIO_PIN_0, TIM_CHANNEL_4);
 	ServoxInit(&servo_blk_2, &htim3, GPIOA, GPIO_PIN_1, TIM_CHANNEL_3);
@@ -44,49 +37,27 @@ void set(void) {
 	ServoInitAngle(&servo_blk_1, 500 , 2500);
 	ServoInitAngle(&servo_blk_2, 500, 2500);
 
+	QEIReset(QEI1); // LOWER TT
+	QEIReset(QEI4); // UPPER TT
+
+	QEIWrite(QEI1, MIN_POSCNT);
+	QEIWrite(QEI4, MIN_POSCNT);
+
+	float ttlowerPosGain[3] = {0.8, 0.4, 0.2};
+	float ttupperPosGain[3] = {0.8, 0.4, 0.2};
+
+	ABTInit(SAMPLE_TIME, ttlowerPosGain[0], ttlowerPosGain[1], ttlowerPosGain[2], &tt_lowerEncData ,&tt_lowerPos, &tt_lowerVel, &tt_lowerAcc, &tt_lower_data);
+	ABTEstimateInit(&tt_lower_data);
+
+	ABTInit(SAMPLE_TIME, ttupperPosGain[0], ttupperPosGain[1], ttupperPosGain[2], &tt_upperEncData, &tt_upperPos, &tt_upperVel, &tt_upperAcc, &tt_upper_data);
+	ABTEstimateInit(&tt_upper_data);
+
+	tt_lower = 0.0;
+	tt_upper = 0.0;
 
 	led2 = 1;
 	led3 = 1;
 }
-
-#ifdef black
-
-void RNS_config(CAN_HandleTypeDef* hcanx) {
-	RNSInit(hcanx, &rns);
-
-	//Encoder dcba(0-swap, 1-keep)  BDC dcba(0-keep, 1-swap) //0x00 0x00 0x
-	RNSSet(&rns, RNS_DEVICE_CONFIG, (float) 0b00000101, (float) fwd_omni, (float) roboconPID);
-	RNSSet(&rns, RNS_X_Y_ENC_CONFIG, 0.05 / 4000 * 3.142, 1.0, 0.05 / 4000 * 3.142, 1.0); //1.0 for nonswap , 2.0 for swap // 50mm is external enc
-	RNSSet(&rns, RNS_F_KCD_PTD, 203.20885/ 204.50492, (float)(0.125 * 3.142 / 203.20885));
-	RNSSet(&rns, RNS_B_KCD_PTD, 203.56232/ 203.60160, (float)(0.125 * 3.142 / 203.56232));
-
-	RNSSet(&rns, RNS_F_LEFT_VEL_SATEU, 1.0, 1.0 / 17.9120, 19999.0);
-	RNSSet(&rns, RNS_F_RIGHT_VEL_SATEU, 1.0, 1.0 / 19.7897, 19999.0);
-	RNSSet(&rns, RNS_B_LEFT_VEL_SATEU, 1.0, 1.0 / 18.3077, 19999.0);
-	RNSSet(&rns, RNS_B_RIGHT_VEL_SATEU, 1.0, 1.0 / 18.7605, 19999.0);
-
-	RNSSet(&rns, RNS_F_LEFT_VEL_PID,   1.2,  1.4, 0.0);
-	RNSSet(&rns, RNS_F_RIGHT_VEL_PID,  1.45,  1.75, 0.02);
-	RNSSet(&rns, RNS_B_LEFT_VEL_PID,   0.9,  1.2, 0.0);
-	RNSSet(&rns, RNS_B_RIGHT_VEL_PID,  0.55, 1.9, 0.02);
-
-	RNSSet(&rns, RNS_F_LEFT_VEL_FUZZY_PID_BASE, 0.2, 0.2, 0.2);
-	RNSSet(&rns, RNS_F_LEFT_VEL_FUZZY_PID_PARAM, 0.02, 0.02, 0.02);
-
-	RNSSet(&rns, RNS_PPInit); //Path Planning
-	RNSSet(&rns, RNS_PPPathPID, 0.4, 0.01, 0.0);
-	RNSSet(&rns, RNS_PPEndPID, 0.5, 0.1, 0.7);
-	RNSSet(&rns, RNS_PPZPID, 0.0, 0.0, 0.0,E, 0.2, 0.2, 0.2);
-	RNSSet(&rns, RNS_F_LEFT_VEL_FUZZY_PID_PARAM, 0.02, 0.02, 0.02);
-
-	RNSSet(&rns, RNS_PPInit); //Path Planning
-	RNSSet(&rns, RNS_PPPathPID, 0.4, 0.01, 0.0);
-	RNSSet(&rns, RNS_PPEndPID, 0.55, 0.1, 0.7);
-	RNSSet(&rns, RNS_PPZPID, 7.5, 0.02, 0.02, 5.5);
-	RNSSet(&rns, RNS_PPSetCRV_PTS, 10.0);         // Change No. of Points in the Curved Path
-}
-
-#else
 
 void RNS_config(CAN_HandleTypeDef* hcanx) {
 	RNSInit(hcanx, &rns);
@@ -117,5 +88,4 @@ void RNS_config(CAN_HandleTypeDef* hcanx) {
 	RNSSet(&rns, RNS_PPSetCRV_PTS, 20.0);         // Change No. of Points in the Curved Path
 }
 
-#endif
 

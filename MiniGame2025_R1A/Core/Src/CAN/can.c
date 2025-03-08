@@ -147,6 +147,7 @@ uint32_t CAN_TxMsg(CAN_HandleTypeDef* hcanx,uint32_t StdId_11bits,uint8_t *Msg,u
 		Txmsg[i++]= *(uint8_t*)buf++;
 		if(i == 8){
 			TxMessage.DLC=8;
+			/* the TxMessage and Txmsg will stored into can mail box to transmit */
 			if (HAL_CAN_AddTxMessage(hcanx, &TxMessage, Txmsg, &canMailbox) != HAL_OK) {
 				Error_Handler();
 			}
