@@ -196,7 +196,7 @@ void Feeding(void *argument)
 //				RNSVelocity(); //slightly move forward until detect R2A
 				osDelay(10);
 			}
-			RNSStop(&rns);
+//			RNSStop(&rns);
 			led2 = 1;
 		}
 		if(ps4.button == SQUARE)
