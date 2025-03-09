@@ -37,24 +37,6 @@ void set(void) {
 	ServoInitAngle(&servo_blk_1, 500 , 2500);
 	ServoInitAngle(&servo_blk_2, 500, 2500);
 
-	QEIReset(QEI1); // LOWER TT
-	QEIReset(QEI4); // UPPER TT
-
-	QEIWrite(QEI1, MIN_POSCNT);
-	QEIWrite(QEI4, MIN_POSCNT);
-
-	float ttlowerPosGain[3] = {0.8, 0.4, 0.2};
-	float ttupperPosGain[3] = {0.8, 0.4, 0.2};
-
-	ABTInit(SAMPLE_TIME, ttlowerPosGain[0], ttlowerPosGain[1], ttlowerPosGain[2], &tt_lowerEncData ,&tt_lowerPos, &tt_lowerVel, &tt_lowerAcc, &tt_lower_data);
-	ABTEstimateInit(&tt_lower_data);
-
-	ABTInit(SAMPLE_TIME, ttupperPosGain[0], ttupperPosGain[1], ttupperPosGain[2], &tt_upperEncData, &tt_upperPos, &tt_upperVel, &tt_upperAcc, &tt_upper_data);
-	ABTEstimateInit(&tt_upper_data);
-
-	tt_lower = 0.0;
-	tt_upper = 0.0;
-
 	led2 = 1;
 	led3 = 1;
 }

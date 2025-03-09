@@ -16,7 +16,7 @@
 #ifndef SRC_ADAPTER_H_
 #define SRC_ADAPTER_H_
 
-//#define mainboard3_3
+#define mainboard3_3
 
 /* Private variables ---------------------------------------------------------*/
 
@@ -183,7 +183,7 @@ BDC_t BDC1, BDC2, BDC3, BDC4, BDC5, BDC6, BDC7, BDC8;
 uint8_t insData_receive[2];
 PSxBT_t ps4;
 MODN_t Modn;
-ABT_t filter, tt_lower_data, tt_upper_data;
+ABT_t filter;
 ADC_t adc;
 LASER_t r_laser,l_laser;
 KALMANFILTER_t kf_adc_r,kf_adc_l,kf_pres;
@@ -202,6 +202,7 @@ R6091U_t imu;
 #define PB1			GPIOB_IN->bit5
 #define PB2			GPIOE_IN->bit0
 #define PB3			GPIOE_IN->bit4
+#define Sensor_P	GPIOE_IN->bit12
 
 #define LED1_PIN			GPIOB, GPIO_PIN_7
 #define LED2_PIN			GPIOC, GPIO_PIN_15
@@ -220,11 +221,11 @@ R6091U_t imu;
 #define led6		GPIOC_OUT->bit13 //4
 #define led7		GPIOD_OUT->bit7  //8
 #define led8		GPIOB_OUT->bit6  //11
+
 #else
 
 #define PB1 		GPIOB_IN->bit7
 #define PB2 		GPIOE_IN->bit0
-#define Sensor_P	GPIOE_IN->bit12
 
 #define led1		GPIOC_OUT->bit13
 #define led2		GPIOC_OUT->bit14
@@ -275,18 +276,9 @@ SERVO_t servo_red, servo_blk_1, servo_blk_2;
 uint8_t buffer_g[25];
 PID_t w1, w2, w3, w4, imu_rotate, ltt, utt;
 
-#define SAMPLE_TIME 0.005f
-#define MIN_POSCNT	500
 
 float Err_l, F_l, Err_u, F_u;
 float tt_lower, tt_upper;
-
-
-float tt_lowerEncData, tt_upperEncData;
-float tt_lowerPos, tt_upperPos;			/* Position, ABT output, pos PID feedback */
-float tt_lowerVel, tt_upperVel;			/* Velocity, ABT output */
-float tt_lowerAcc, tt_upperAcc;			/* Acceleration, ABT output*/
-
 
 void CAN_PROCESS(PACKET_t packet_src);
 void Initialize (void);

@@ -7,9 +7,9 @@
 /******************************************************************************/
 /*           Cortex-M4 Processor Interruption and Exception Handlers          */
 /******************************************************************************/
-#define USED_QEI1
+//#define USED_QEI1
 #define USED_QEI4
-//#define USED_QEI6
+#define USED_QEI6
 
 int count = 0;
 int count2 = 0;

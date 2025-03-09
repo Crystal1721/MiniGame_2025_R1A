@@ -27,6 +27,7 @@ float set_yaw, yaw_offset, yaw_angle, x_offset, y_offset;
 int pers_ctl_flag, imu_lock= 0;
 
 int feeding_flag = 0;
+int lower_tt_flag = 0;
 
 
 
@@ -48,6 +49,10 @@ osMutexId_t sensorMutex;
 
 // ret
 osStatus_t ret;
+osStatus_t sema1;
+osStatus_t sema2;
+osStatus_t queue1;
+osStatus_t queue2;
 osPriority_t priority;
 
 /* struct for queue data btw two tasks */
@@ -56,8 +61,6 @@ typedef struct{
 	float current_yaw;
 	float current_x_axis;
 	float current_y_axis;
-	float current_tt_lower_pos;
-	float current_tt_upper_pos;
 	int Analog_sensor;
 
 }sensor;
@@ -68,14 +71,20 @@ void Feeding(void *argument);
 void Sensor(void *argument);
 void Retrivesball(void *argument);
 
+sensor sender;
+sensor receive;
+
+int enc1 = 0;
+int enc2 = 0;
+
 
 int main(void)
 {
 
 
 	set();
-	ServoSetAngle(&servo_blk_1,0);
-	ServoSetAngle(&servo_blk_2,0);
+	ServoSetAngle(&servo_blk_1,75);
+	ServoSetAngle(&servo_blk_2,10);
 	ServoSetAngle(&servo_red,135);
 	/* Definition of tasks */
 	const osThreadAttr_t Motion_Task_attributes = {
@@ -123,7 +132,7 @@ int main(void)
 	/*  create Counting Semaphore */
 	Data_CountSemphrHandle = osSemaphoreNew(2, 0, &Data_CountSemphr_attributes);
 	/*  create Queue = send data btw tasks */
-	sensor_QueueHandle = osMessageQueueNew (10, sizeof(sensor), &sensor_Queue_attributes);
+	sensor_QueueHandle = osMessageQueueNew (20, sizeof(sensor), &sensor_Queue_attributes);
 	/*  create Queue = send data btw tasks */
 	sensorMutex = osMutexNew (&Sensor_Mutex_attributes);
 
@@ -151,8 +160,6 @@ void Motion(void *argument)
 //		PIDDelayInit (&utt);
 			/* Process data */
 //		HAL_NVIC_SystemReset();
-
-		osDelay(15);
 	}
 }
 
@@ -164,55 +171,69 @@ void Feeding(void *argument)
 	 *
 	 */
 	/* Receive Data by Queue */
-	sensor receive1;
+
 
 	while(1)
 	{
-		osMessageQueueGet(sensor_QueueHandle, &receive1, NULL, osWaitForever);
-		osSemaphoreAcquire(Data_CountSemphrHandle, osWaitForever);
-		if(feeding_flag && (ps4.button == TOUCH)) // to prevent the analog sensor misdetect the object
+		queue1 = osMessageQueueGet(sensor_QueueHandle, &receive, NULL, osWaitForever);
+		sema1 = osSemaphoreAcquire(Data_CountSemphrHandle, osWaitForever);
+		if(feeding_flag) // to prevent the analog sensor misdetect the object
 		{
-			while(ps4.button == TOUCH);
-			// start upper tt
-			while(receive1.current_tt_upper_pos <= Desired_Dis2)
-			{
-				// either 1
-				Err_u = Desired_Dis2 - receive1.current_tt_upper_pos;
-				WriteBDC(&BDC7,20000*F_u);
-				WriteBDC(&BDC8,20000*F_u);
-				osDelay(10);
-			}
+			ServoSetAngle(&servo_red,250);
+			osDelay(1000);
+			lower_tt_flag = 0;
 			feeding_flag = 0;
-			QEIReset(QEI1); // LOWER TT
-			QEIReset(QEI4); // UPPER TT
-
-			QEIWrite(QEI1, MIN_POSCNT);
-			QEIWrite(QEI4, MIN_POSCNT);
-		}
-		else if(!feeding_flag && ps4.button == TOUCH)
-		{
-			while(!feeding_flag)
-			{
-//				RNSVelocity(); //slightly move forward until detect R2A
-				osDelay(10);
-			}
-//			RNSStop(&rns);
-			led2 = 1;
-		}
-		if(ps4.button == SQUARE)
-		{
-			ServoSetAngle(&servo_red,0);
-			while(ps4.button == SQUARE);
-		}
-		else
-		{
+			StopBDC(&BDC7);
+			StopBDC(&BDC8);
 			ServoSetAngle(&servo_red,135);
-			feeding_flag = 0;
+
 		}
-		osDelay(20);
+		osDelay(25);
 	}
 
 }
+
+void Retrivesball(void *argument)
+{
+	/*
+	 *  1) press one button, servo retrive the ball
+	 *  2) when servo is close, the timing belt start rotates
+	 */
+
+
+	while(1)
+	{
+		queue2 = osMessageQueueGet(sensor_QueueHandle, &receive, NULL, osWaitForever);
+		sema2 = osSemaphoreAcquire(Data_CountSemphrHandle, osWaitForever);
+		switch(ps4.button)
+		{
+		case L1: // Open Servo
+			while(ps4.button == L1);
+			lower_tt_flag = 0;
+			ServoSetAngle(&servo_blk_1,10);
+			ServoSetAngle(&servo_blk_2,75);
+			lower_tt_flag = 0;
+			break;
+		case R1: // Close Servo
+			while(ps4.button == R1);
+			lower_tt_flag = 0;
+			ServoSetAngle(&servo_blk_1,75);
+			ServoSetAngle(&servo_blk_2,10);
+			osDelay(50);
+			lower_tt_flag = 1;
+			break;
+		}
+
+		if(lower_tt_flag)
+		{
+			// start lower tt , lift the ball until half
+			WriteBDC(&BDC7,20000);
+			WriteBDC(&BDC8,20000);
+		}
+		osDelay(20);
+	}
+}
+
 
 void Sensor(void *argument)
 {
@@ -222,7 +243,7 @@ void Sensor(void *argument)
 	 *
 	 */
 	/* Write Data in Queue */
-	sensor sender;
+
 	while(1)
 	{
 		/* write value of wheel en, imu, x,y enc, and laser and write in queue */
@@ -234,87 +255,21 @@ void Sensor(void *argument)
 			sender.current_y_axis= rns.RNS_data.common_buffer[2].data;
 			osMutexRelease(sensorMutex);
 		}
-		// calculate the pulse of the tt motor
-		tt_lowerEncData = 0.05 / 4000 * 3.142 * (QEIRead(QEI1) - MIN_POSCNT);
-		tt_upperEncData = 0.05 / 4000 * 3.142 * (QEIRead(QEI4) - MIN_POSCNT);
-
-		ABT(&tt_lower_data);
-		ABT(&tt_upper_data);
-
-		sender.current_tt_lower_pos = tt_lowerPos;
-		sender.current_tt_upper_pos = tt_upperPos;
 
 		if(Sensor_P == 0)
 		{
 			feeding_flag = 1;
 		}
-		else
-		{
-			feeding_flag = 0;
-		}
-
 		if (osMessageQueuePut(sensor_QueueHandle, &sender, 0,osWaitForever) == osOK) {
 			osSemaphoreRelease(Data_CountSemphrHandle);
 		}
 		char response[80];
-		snprintf(response, sizeof(response), "x: %.3f y: %.3f a: %.3f ttl: %.3f ttu: %.3f\n", sender.current_x_axis, sender.current_y_axis, sender.current_yaw, sender.current_tt_lower_pos, sender.current_tt_upper_pos);
+		snprintf(response, sizeof(response), "x: %.3f y: %.3f a: %.3f \n", sender.current_x_axis, sender.current_y_axis, sender.current_yaw);
 		UARTPrintString(&huart2, response);
-		osDelay(25);
+		osDelay(20);
 	}
 }
 
-void Retrivesball(void *argument)
-{
-	/*
-	 *  1) press one button, servo retrive the ball
-	 *  2) when servo is close, the timing belt start rotates
-	 *  3) until the ball reached middle of the ball
-	 */
-	uint32_t lower_tt_flag = 0;
-	sensor receive2;
-	while(1)
-	{
-		osMessageQueueGet(sensor_QueueHandle, &receive2, NULL, osWaitForever);
-		osSemaphoreAcquire(Data_CountSemphrHandle, osWaitForever);
-		switch(ps4.button)
-		{
-		case L1: // Open Servo
-			while(ps4.button == L1);
-			lower_tt_flag = 0;
-			ServoSetAngle(&servo_blk_1,135);
-			ServoSetAngle(&servo_blk_2,135);
-			lower_tt_flag = 0;
-			break;
-		case R1: // Close Servo
-			while(ps4.button == R1);
-			lower_tt_flag = 0;
-			ServoSetAngle(&servo_blk_1,0);
-			ServoSetAngle(&servo_blk_2,0);
-			osDelay(50);
-			lower_tt_flag = 1;
-			break;
-		}
-
-		if(lower_tt_flag)
-		{
-			// start lower tt , lift the ball until half
-			while(receive2.current_tt_lower_pos <= Desired_Dis1)
-			{
-				Err_l = Desired_Dis1 - receive2.current_tt_lower_pos;
-				// either 1
-				WriteBDC(&BDC7,20000*F_u);
-				WriteBDC(&BDC8,20000*F_u);
-				osDelay(10);
-			}
-			lower_tt_flag = 0;
-			QEIReset(QEI1); // LOWER TT
-			QEIReset(QEI4); // UPPER TT
-
-			QEIWrite(QEI1, MIN_POSCNT);
-			QEIWrite(QEI4, MIN_POSCNT);
-		}
-	}
-}
 
 void TIM6_DAC_IRQHandler(void)
 {
