@@ -27,7 +27,8 @@ float set_yaw, yaw_offset, yaw_angle, x_offset, y_offset;
 int pers_ctl_flag, imu_lock= 0;
 
 int feeding_flag = 0;
-int lower_tt_flag = 0;
+int tt_flag = 0;
+int start_feed = 0;
 
 
 
@@ -74,10 +75,6 @@ void Retrivesball(void *argument);
 sensor sender;
 sensor receive;
 
-int enc1 = 0;
-int enc2 = 0;
-
-
 int main(void)
 {
 
@@ -85,12 +82,12 @@ int main(void)
 	set();
 	ServoSetAngle(&servo_blk_1,75);
 	ServoSetAngle(&servo_blk_2,10);
-	ServoSetAngle(&servo_red,135);
+	ServoSetAngle(&servo_red,0);
 	/* Definition of tasks */
 	const osThreadAttr_t Motion_Task_attributes = {
 			.name = "MotionTask",
 			.stack_size = 512 *  4,
-			.priority = (osPriority_t) osPriorityNormal,
+			.priority = (osPriority_t) osPriorityNormal7 ,
 	};
 
 	const osThreadAttr_t Feeding_Task_attributes = {
@@ -102,7 +99,7 @@ int main(void)
 	const osThreadAttr_t Sensor_Task_attributes = {
 			.name = "SensorTask",
 			.stack_size = 512 *  4,
-			.priority = (osPriority_t) osPriorityNormal,
+			.priority = (osPriority_t) osPriorityAboveNormal,
 	};
 
 	const osThreadAttr_t RetriveBall_Task_attributes = {
@@ -160,14 +157,15 @@ void Motion(void *argument)
 //		PIDDelayInit (&utt);
 			/* Process data */
 //		HAL_NVIC_SystemReset();
+		osDelay(15);
 	}
 }
 
 void Feeding(void *argument)
 {
 	/*
-	 * 1) When the analog sensor is detected R2 with a safety distance,
-	 *    the upper timing belt will rotates and feed the ball
+	 * 1) When the analog sensor is detected the ball,
+	 *    the servo will feed to the r2
 	 *
 	 */
 	/* Receive Data by Queue */
@@ -177,20 +175,30 @@ void Feeding(void *argument)
 	{
 		queue1 = osMessageQueueGet(sensor_QueueHandle, &receive, NULL, osWaitForever);
 		sema1 = osSemaphoreAcquire(Data_CountSemphrHandle, osWaitForever);
-		if(feeding_flag) // to prevent the analog sensor misdetect the object
+		if(feeding_flag && tt_flag)
 		{
-			ServoSetAngle(&servo_red,250);
-			osDelay(1000);
-			lower_tt_flag = 0;
+			osDelay(200);
+			tt_flag = 0;
 			feeding_flag = 0;
+			start_feed = 1;
 			StopBDC(&BDC7);
 			StopBDC(&BDC8);
-			ServoSetAngle(&servo_red,135);
-
 		}
-		osDelay(25);
+		if(ps4.button == TOUCH && start_feed)
+		{
+			while(ps4.button == TOUCH)
+			{
+				osDelay(10);
+			}
+			ServoSetAngle(&servo_red,100);
+			osDelay(500);
+			start_feed = 0;
+		}
+		else
+		{
+			ServoSetAngle(&servo_red,0);
+		}
 	}
-
 }
 
 void Retrivesball(void *argument)
@@ -208,29 +216,33 @@ void Retrivesball(void *argument)
 		switch(ps4.button)
 		{
 		case L1: // Open Servo
-			while(ps4.button == L1);
-			lower_tt_flag = 0;
+			while(ps4.button == L1)
+			{
+				osDelay(10);
+			}
+			tt_flag = 0;
 			ServoSetAngle(&servo_blk_1,10);
 			ServoSetAngle(&servo_blk_2,75);
-			lower_tt_flag = 0;
+			tt_flag = 0;
 			break;
 		case R1: // Close Servo
-			while(ps4.button == R1);
-			lower_tt_flag = 0;
+			while(ps4.button == R1)
+			{
+				osDelay(10);
+			}
+			tt_flag = 0;
 			ServoSetAngle(&servo_blk_1,75);
 			ServoSetAngle(&servo_blk_2,10);
 			osDelay(50);
-			lower_tt_flag = 1;
+			tt_flag = 1;
 			break;
 		}
 
-		if(lower_tt_flag)
+		if(tt_flag)
 		{
-			// start lower tt , lift the ball until half
 			WriteBDC(&BDC7,20000);
 			WriteBDC(&BDC8,20000);
 		}
-		osDelay(20);
 	}
 }
 
@@ -266,7 +278,7 @@ void Sensor(void *argument)
 		char response[80];
 		snprintf(response, sizeof(response), "x: %.3f y: %.3f a: %.3f \n", sender.current_x_axis, sender.current_y_axis, sender.current_yaw);
 		UARTPrintString(&huart2, response);
-		osDelay(20);
+		osDelay(25);
 	}
 }
 
@@ -277,8 +289,6 @@ void TIM6_DAC_IRQHandler(void)
 	ret = osSemaphoreRelease(Data_CountSemphrHandle);
 	led1=!led1;
 	PSxConnectionHandler(&ps4);
-	PID(&ltt);
-	PID(&utt);
 	HAL_TIM_IRQHandler(&htim6);
 }
 
