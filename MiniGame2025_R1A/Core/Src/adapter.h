@@ -274,10 +274,23 @@ typedef enum{
 /* self define receiveing data*/
 SERVO_t servo_red, servo_blk_1, servo_blk_2;
 uint8_t buffer_g[25];
-PID_t w1, w2, w3, w4, imu_rotate, ltt, utt;
+PID_t w1, w2, w3, w4, imu_rotate, x_coor, y_coor;
 
 
-float Err_l, F_l, Err_u, F_u;
+/* coordinates from python */
+float norm_cx, norm_cy;
+char py_buffer[20];
+
+typedef struct{
+	float current_x;
+	float current_y;
+	float offset_x;
+	float offset_y;
+}Detected_pos;
+
+Detected_pos receive_pos;
+
+float Err_angle, F_angle, Err_y, F_y;
 float tt_lower, tt_upper;
 
 void CAN_PROCESS(PACKET_t packet_src);

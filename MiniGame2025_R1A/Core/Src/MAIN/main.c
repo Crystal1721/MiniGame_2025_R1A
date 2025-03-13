@@ -10,9 +10,10 @@
 
 #define MAX_V 4.0
 #define POINTS 1
-#define MAX_PWM 4000
-#define Desired_Dis1 0.5
-#define Desired_Dis2 0.4
+#define MAX_PWM 5000
+#define CAM_WIDTH 640.0
+#define FOV 50.0
+
 
 
 /* test wheel velocity */
@@ -29,9 +30,8 @@ int pers_ctl_flag, imu_lock= 0;
 int feeding_flag = 0;
 int tt_flag = 0;
 int start_feed = 0;
-
-
-
+int pid_flag = 0;
+float previous_angle = 0.0;
 
 /* Task handles */
 osThreadId_t xMotionTaskHandle;
@@ -49,13 +49,14 @@ osMessageQueueId_t sensor_QueueHandle;
 osMutexId_t sensorMutex;
 
 // ret
-osStatus_t ret;
 osStatus_t sema1;
 osStatus_t sema2;
 osStatus_t queue1;
 osStatus_t queue2;
 osPriority_t priority;
 
+
+HAL_StatusTypeDef ret;
 /* struct for queue data btw two tasks */
 typedef struct{
 
@@ -66,14 +67,14 @@ typedef struct{
 
 }sensor;
 
+
+sensor receive;
+
 /* Function prototypes */
 void Motion(void *argument);
 void Feeding(void *argument);
 void Sensor(void *argument);
 void Retrivesball(void *argument);
-
-sensor sender;
-sensor receive;
 
 int main(void)
 {
@@ -83,28 +84,29 @@ int main(void)
 	ServoSetAngle(&servo_blk_1,75);
 	ServoSetAngle(&servo_blk_2,10);
 	ServoSetAngle(&servo_red,0);
+
 	/* Definition of tasks */
 	const osThreadAttr_t Motion_Task_attributes = {
 			.name = "MotionTask",
-			.stack_size = 512 *  4,
-			.priority = (osPriority_t) osPriorityNormal7 ,
+			.stack_size = 256*  4,
+			.priority = (osPriority_t) osPriorityNormal,
 	};
 
 	const osThreadAttr_t Feeding_Task_attributes = {
 			.name = "FeedingTask",
-			.stack_size = 512 *  4,
+			.stack_size = 650 *  4,
 			.priority = (osPriority_t) osPriorityNormal,
 	};
 
 	const osThreadAttr_t Sensor_Task_attributes = {
 			.name = "SensorTask",
-			.stack_size = 512 *  4,
-			.priority = (osPriority_t) osPriorityAboveNormal,
+			.stack_size = 625 *  4,
+			.priority = (osPriority_t) osPriorityNormal,
 	};
 
 	const osThreadAttr_t RetriveBall_Task_attributes = {
 			.name = "RetriveBall",
-			.stack_size = 512 *  4,
+			.stack_size = 625 *  4,
 			.priority = (osPriority_t) osPriorityNormal,
 	};
 
@@ -130,9 +132,8 @@ int main(void)
 	Data_CountSemphrHandle = osSemaphoreNew(2, 0, &Data_CountSemphr_attributes);
 	/*  create Queue = send data btw tasks */
 	sensor_QueueHandle = osMessageQueueNew (20, sizeof(sensor), &sensor_Queue_attributes);
-	/*  create Queue = send data btw tasks */
+	/*  create Mutex = protect data */
 	sensorMutex = osMutexNew (&Sensor_Mutex_attributes);
-
 
 	/*  create task  == all are in ready state */
 	xMotionTaskHandle = osThreadNew(Motion, NULL, &Motion_Task_attributes);
@@ -149,15 +150,47 @@ int main(void)
 
 void Motion(void *argument)
 {
-
+	RNSEnquire(RNS_X_Y_IMU_LSA, &rns);
+	float inital_yaw_angle = (float)(rns.enq.enq_buffer[0].data);
 
 	while(1)
 	{
+	    float current_yaw_angle = (float)(rns.enq.enq_buffer[0].data);
+
+		float rad = (current_yaw_angle-inital_yaw_angle)*(M_PI/180.0f);
+
+		float x_vel =(float) ps4.joyL_x;
+		float y_vel =(float) ps4.joyL_y;
+
+		xr = x_vel*cos(rad) +(- y_vel*sin(rad));
+		yr = -(x_vel*sin(rad) + y_vel*cos(rad));
+		wr = (float)ps4.joyR_x;
+		MODN(&Modn);
+
+
+		if(ps4.joyL_x !=0 || ps4.joyL_y !=0 || ps4.joyR_x !=0)
+		{
+			RNSVelocity(v1*2.0,v2*2.0,v3*2.0,v4*2.0,&rns);
+
+		}
 //		PIDDelayInit (&ltt);
 //		PIDDelayInit (&utt);
 			/* Process data */
-//		HAL_NVIC_SystemReset();
-		osDelay(15);
+
+		switch(ps4.button)
+		{
+		case SQUARE: //  Stop the tt motor
+			while(ps4.button == SQUARE);
+			StopBDC(&BDC7);
+			StopBDC(&BDC8);
+			break;
+		case PS:
+			while(ps4.button == PS);
+			HAL_NVIC_SystemReset();
+			RNSStop(&rns);
+			break;
+		}
+		osDelay(10);
 	}
 }
 
@@ -169,7 +202,7 @@ void Feeding(void *argument)
 	 *
 	 */
 	/* Receive Data by Queue */
-
+	sensor receive;
 
 	while(1)
 	{
@@ -181,23 +214,23 @@ void Feeding(void *argument)
 			tt_flag = 0;
 			feeding_flag = 0;
 			start_feed = 1;
+			pid_flag = 0;
 			StopBDC(&BDC7);
-			StopBDC(&BDC8);
 		}
 		if(ps4.button == TOUCH && start_feed)
 		{
-			while(ps4.button == TOUCH)
-			{
-				osDelay(10);
-			}
+			while(ps4.button == TOUCH);
 			ServoSetAngle(&servo_red,100);
 			osDelay(500);
 			start_feed = 0;
+			pid_flag = 0;
+			StopBDC(&BDC8);
 		}
 		else
 		{
 			ServoSetAngle(&servo_red,0);
 		}
+		osDelay(5);
 	}
 }
 
@@ -216,33 +249,43 @@ void Retrivesball(void *argument)
 		switch(ps4.button)
 		{
 		case L1: // Open Servo
-			while(ps4.button == L1)
-			{
-				osDelay(10);
-			}
-			tt_flag = 0;
+			while(ps4.button == L1);
 			ServoSetAngle(&servo_blk_1,10);
 			ServoSetAngle(&servo_blk_2,75);
+			WriteBDC(&BDC7,750);
+			yaw_offset = ((receive_pos.current_x - (CAM_WIDTH/2.0))*FOV/CAM_WIDTH);
+			previous_angle =  receive.current_yaw;
+			pid_flag = 1;
 			tt_flag = 0;
 			break;
 		case R1: // Close Servo
-			while(ps4.button == R1)
-			{
-				osDelay(10);
-			}
-			tt_flag = 0;
+			while(ps4.button == R1);
 			ServoSetAngle(&servo_blk_1,75);
 			ServoSetAngle(&servo_blk_2,10);
-			osDelay(50);
+			osDelay(20);
 			tt_flag = 1;
+			pid_flag = 0;
+			RNSStop(&rns);
 			break;
 		}
 
 		if(tt_flag)
 		{
-			WriteBDC(&BDC7,20000);
-			WriteBDC(&BDC8,20000);
+			WriteBDC(&BDC7,1550);
+			WriteBDC(&BDC8,1550);
 		}
+		/* start automation */
+		if(pid_flag)
+		{
+
+			Err_angle = fmod(yaw_offset - receive.current_yaw -180 + 540, 360) - 180;
+			wr = F_angle;
+			MODN(&Modn);
+//			RNSVelocity(v1,v2,v3,v4,&rns);
+			RNSPDC(MAX_PWM*v1,MAX_PWM*v2,MAX_PWM*v3,MAX_PWM*v4,&rns);
+
+		}
+		osDelay(17);
 	}
 }
 
@@ -255,6 +298,7 @@ void Sensor(void *argument)
 	 *
 	 */
 	/* Write Data in Queue */
+	sensor sender;
 
 	while(1)
 	{
@@ -262,7 +306,9 @@ void Sensor(void *argument)
 		if(RNSEnquire(RNS_X_Y_IMU_LSA, &rns) == 1)
 		{
 			osMutexAcquire(sensorMutex, osWaitForever);
-			sender.current_yaw =  rns.RNS_data.common_buffer[0].data;
+			ret = HAL_UART_Receive(&huart3, (uint8_t*)py_buffer, 14,50);
+			sscanf(py_buffer, "%f,%f", &norm_cx, &norm_cy);
+			sender.current_yaw =  rns.RNS_data.common_buffer[0].data - 180;
 			sender.current_x_axis= rns.RNS_data.common_buffer[1].data;
 			sender.current_y_axis= rns.RNS_data.common_buffer[2].data;
 			osMutexRelease(sensorMutex);
@@ -272,13 +318,24 @@ void Sensor(void *argument)
 		{
 			feeding_flag = 1;
 		}
-		if (osMessageQueuePut(sensor_QueueHandle, &sender, 0,osWaitForever) == osOK) {
-			osSemaphoreRelease(Data_CountSemphrHandle);
+		else
+		{
+			feeding_flag = 0;
 		}
+		if (osMessageQueuePut(sensor_QueueHandle, &sender, 0,osWaitForever) == osOK) {
+			sema2 = osSemaphoreRelease(Data_CountSemphrHandle);
+		}
+
 		char response[80];
 		snprintf(response, sizeof(response), "x: %.3f y: %.3f a: %.3f \n", sender.current_x_axis, sender.current_y_axis, sender.current_yaw);
 		UARTPrintString(&huart2, response);
-		osDelay(25);
+
+
+//		char python[80];
+//		snprintf(python, sizeof(python), "Received X: %d, Y: %d\n", norm_cx, norm_cy);
+		receive_pos.current_x =  norm_cx;
+		receive_pos.current_y =  norm_cy;
+		osDelay(30);
 	}
 }
 
@@ -286,8 +343,15 @@ void Sensor(void *argument)
 void TIM6_DAC_IRQHandler(void)
 {
 
-	ret = osSemaphoreRelease(Data_CountSemphrHandle);
+	sema1 = osSemaphoreRelease(Data_CountSemphrHandle);
 	led1=!led1;
+	if(pid_flag)
+	{
+		PID(&imu_rotate);
+	}
+	else{
+		PIDDelayInit(&imu_rotate);
+	}
 	PSxConnectionHandler(&ps4);
 	HAL_TIM_IRQHandler(&htim6);
 }

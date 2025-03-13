@@ -8,8 +8,8 @@
 /*           Cortex-M4 Processor Interruption and Exception Handlers          */
 /******************************************************************************/
 //#define USED_QEI1
-#define USED_QEI4
-#define USED_QEI6
+//#define USED_QEI4
+//#define USED_QEI6
 
 int count = 0;
 int count2 = 0;
@@ -268,10 +268,18 @@ void UART4_IRQHandler(void)
 }
 
 
+extern HAL_StatusTypeDef ret;
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart == imu.huartx){
 		R6091U_Handler(&imu);
 	}
+//	else if(huart == &huart1)
+//	{
+//
+//	}
+
+
 }
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

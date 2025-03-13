@@ -73,17 +73,18 @@ void Initialize(){
 	CANxInit(&hcan1,4,CAN_FILTER_FIFO0,0,0,13,5,0);//500KHz
 //	CANxInit(&hcan2,4,CAN_FILTER_FIFO1,0,0,27,1,2);
 
-	UARTInit(&huart2,115200, ENABLE, 5,0);
-//	UARTInit(&huart3,115200, DISABLE, 0,0);
+//	UARTInit(&huart2,115200, ENABLE, 5,0);
+//	UARTInit(&huart1,115200, ENABLE, 0,0);
 //	UARTx_DMA_Rx_Init(&huart3, &hdma_usart3_rx, 7, 0);
 //	UARTx_DMA_Tx_Init(&huart2, &hdma_usart2_tx, 5, 0);
 
-//	UARTInit(&huart4,115200, ENABLE, 5,0);
-//	UARTInit(&huart5,115200, ENABLE, 5,0);
+	UARTInit(&huart3,115200, DISABLE, 0,0);
+	UARTInit(&huart2,115200, ENABLE, 5,0);
+
 
 //	QEIInit(&htim1,5,5);
-	QEIInit(&htim4,5,5);
-	QEIInit(&htim8,5,5);
+//	QEIInit(&htim4,5,5);
+//	QEIInit(&htim8,5,5);
 
 	PWMTimeBaseInit(&htim1, 2000, 66);
 	PWMChannelConfig(&htim1, TIM_CHANNEL_3, TIM1_CHANNEL3_PIN);
