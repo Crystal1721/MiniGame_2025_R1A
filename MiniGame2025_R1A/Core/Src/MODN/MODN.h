@@ -58,5 +58,6 @@ void MODNRobotBaseInit(unsigned char base, float d, float e, MODN_t *modn);
 void MODNRobotVelInit(float *x_vel, float *y_vel, float *w_vel, MODN_t *modn);
 void MODNWheelVelInit(float *vel1, float *vel2, float *vel3, float *vel4, MODN_t *modn);
 void MODN(MODN_t *modn);
+void MODN_objtrack(MODN_t *modn);
 /*********************************************/
 #endif

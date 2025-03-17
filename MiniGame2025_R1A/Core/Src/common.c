@@ -23,7 +23,7 @@ void set(void) {
 
 	PIDSourceInit (&Err_angle, &F_angle, &imu_rotate);
 	PIDDelayInit (&imu_rotate);
-	PIDGainInit(0.02, 1.0, 1/360.0, 360.0, 0.0018, 0.001, 0.0015, 2*3.1415926*10.0,  &imu_rotate);
+	PIDGainInit(0.02, 1.0, 1/180.0, 1.0, 2.5, 0.0, 0.0,  2*3.1415926*10.0,  &imu_rotate);
 
 	ServoxInit(&servo_blk_1, &htim3, GPIOA, GPIO_PIN_0, TIM_CHANNEL_4);
 	ServoxInit(&servo_blk_2, &htim3, GPIOA, GPIO_PIN_1, TIM_CHANNEL_3);

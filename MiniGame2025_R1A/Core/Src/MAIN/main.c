@@ -31,7 +31,7 @@ int feeding_flag = 0;
 int tt_flag = 0;
 int start_feed = 0;
 int pid_flag = 0;
-float previous_angle = 0.0;
+float previous_yaw;
 
 /* Task handles */
 osThreadId_t xMotionTaskHandle;
@@ -78,7 +78,6 @@ void Retrivesball(void *argument);
 
 int main(void)
 {
-
 
 	set();
 	ServoSetAngle(&servo_blk_1,75);
@@ -153,25 +152,42 @@ void Motion(void *argument)
 	RNSEnquire(RNS_X_Y_IMU_LSA, &rns);
 	float inital_yaw_angle = (float)(rns.enq.enq_buffer[0].data);
 
+	MODN_t modn;
+	unsigned char base = MODN_FWD_OMNI;
+	float xr,yr,wr;
+	float vel1,vel2,vel3,vel4;
+
+	MODNRobotBaseInit(base,0.5,0.5,&modn);
+	MODNRobotVelInit(&xr,&yr,&wr,&modn);
+	MODNWheelVelInit(&vel1,&vel2,&vel3, &vel4,&modn);
+
 	while(1)
 	{
 	    float current_yaw_angle = (float)(rns.enq.enq_buffer[0].data);
 
 		float rad = (current_yaw_angle-inital_yaw_angle)*(M_PI/180.0f);
 
-		float x_vel =(float) ps4.joyL_x;
-		float y_vel =(float) ps4.joyL_y;
+		float x_vel = (float) ps4.joyL_x;
+		float y_vel = -(float) ps4.joyL_y;
 
-		xr = x_vel*cos(rad) +(- y_vel*sin(rad));
+		xr = x_vel*cos(rad) + (- y_vel*sin(rad));
 		yr = -(x_vel*sin(rad) + y_vel*cos(rad));
-		wr = (float)ps4.joyR_x;
-		MODN(&Modn);
+		wr = -ps4.joyR_x;
+//		wr = ps4.joyR_2 - ps4.joyL_2;
+//		xr = ps4.joyR_x;
+//		yr = ps4.joyL_y;
+
+		MODN(&modn);
 
 
-		if(ps4.joyL_x !=0 || ps4.joyL_y !=0 || ps4.joyR_x !=0)
+		if(ps4.joyR_x !=0 || ps4.joyL_y !=0 || ps4.joyR_2 !=0 || ps4.joyL_2 !=0)
 		{
-			RNSVelocity(v1*2.0,v2*2.0,v3*2.0,v4*2.0,&rns);
+			RNSVelocity(vel1*2.0,vel2*2.0,vel3*2.0,vel4*2.0,&rns);
 
+		}
+		else
+		{
+			RNSStop(&rns);
 		}
 //		PIDDelayInit (&ltt);
 //		PIDDelayInit (&utt);
@@ -186,8 +202,10 @@ void Motion(void *argument)
 			break;
 		case PS:
 			while(ps4.button == PS);
-			HAL_NVIC_SystemReset();
+			StopBDC(&BDC7);
+			StopBDC(&BDC8);
 			RNSStop(&rns);
+			HAL_NVIC_SystemReset();
 			break;
 		}
 		osDelay(10);
@@ -202,33 +220,29 @@ void Feeding(void *argument)
 	 *
 	 */
 	/* Receive Data by Queue */
-	sensor receive;
 
 	while(1)
 	{
-		queue1 = osMessageQueueGet(sensor_QueueHandle, &receive, NULL, osWaitForever);
 		sema1 = osSemaphoreAcquire(Data_CountSemphrHandle, osWaitForever);
 		if(feeding_flag && tt_flag)
 		{
-			osDelay(200);
+//			osDelay(200);
 			tt_flag = 0;
 			feeding_flag = 0;
 			start_feed = 1;
 			pid_flag = 0;
-			StopBDC(&BDC7);
+			WriteBDC(&BDC8,750);
 		}
-		if(ps4.button == TOUCH && start_feed)
+		if(start_feed)
 		{
-			while(ps4.button == TOUCH);
-			ServoSetAngle(&servo_red,100);
-			osDelay(500);
-			start_feed = 0;
-			pid_flag = 0;
-			StopBDC(&BDC8);
-		}
-		else
-		{
-			ServoSetAngle(&servo_red,0);
+			ServoSetAngle(&servo_red,(fabs(ps4.joyR_2))*100);
+			if(ps4.button == TOUCH)
+			{
+				while(ps4.button == TOUCH);
+				start_feed = 0;
+				pid_flag = 0;
+//				StopBDC(&BDC8);
+			}
 		}
 		osDelay(5);
 	}
@@ -253,8 +267,7 @@ void Retrivesball(void *argument)
 			ServoSetAngle(&servo_blk_1,10);
 			ServoSetAngle(&servo_blk_2,75);
 			WriteBDC(&BDC7,750);
-			yaw_offset = ((receive_pos.current_x - (CAM_WIDTH/2.0))*FOV/CAM_WIDTH);
-			previous_angle =  receive.current_yaw;
+//			yaw_offset = ((receive_pos.current_x - (CAM_WIDTH/2.0))*FOV/CAM_WIDTH) + receive.current_yaw;
 			pid_flag = 1;
 			tt_flag = 0;
 			break;
@@ -271,21 +284,62 @@ void Retrivesball(void *argument)
 
 		if(tt_flag)
 		{
-			WriteBDC(&BDC7,1550);
-			WriteBDC(&BDC8,1550);
+			/* may add some manually control to control timing belt */
+			if(ps4.button == UP)
+			{
+//				while(ps4.button == UP);
+				WriteBDC(&BDC8,1550);
+			}
+			else if (ps4.button == DOWN)
+			{
+//				while(ps4.button == DOWN);
+				WriteBDC(&BDC8,-750);
+			}
+			else if (ps4.button == TRIANGLE)
+			{
+//				while(ps4.button == DOWN);
+				WriteBDC(&BDC7,1550);
+			}
+			else if (ps4.button == CROSS)
+			{
+//				while(ps4.button == DOWN);
+				WriteBDC(&BDC7,-750);
+			}
+			else if (ps4.button == (TRIANGLE|UP))
+			{
+//				while(ps4.button == DOWN);
+				WriteBDC(&BDC7,1550);
+				WriteBDC(&BDC8,1550);
+			}
+			else if (ps4.button == (DOWN|CROSS))
+			{
+//				while(ps4.button == DOWN);
+				WriteBDC(&BDC7,-750);
+				WriteBDC(&BDC8,-750);
+			}else
+			{
+				StopBDC(&BDC7);
+				StopBDC(&BDC8);
+			}
 		}
 		/* start automation */
 		if(pid_flag)
 		{
-
-			Err_angle = fmod(yaw_offset - receive.current_yaw -180 + 540, 360) - 180;
-			wr = F_angle;
-			MODN(&Modn);
-//			RNSVelocity(v1,v2,v3,v4,&rns);
-			RNSPDC(MAX_PWM*v1,MAX_PWM*v2,MAX_PWM*v3,MAX_PWM*v4,&rns);
-
+			if(ps4.button == UP)
+			{
+//				while(ps4.button == UP);
+				WriteBDC(&BDC8,1550);
+			}
+//			Err_angle = fmod(yaw_offset - receive.current_yaw + 540, 360) - 180;
+//			wr = F_angle;
+////			yr = ps4.joyL_y;
+//			MODN(&Modn);
+//			RNSVelocity(v1*2.0,v2*2.0,v3*2.0,v4*2.0,&rns);
 		}
-		osDelay(17);
+		else{
+			RNSSet(&rns, RNS_DEVICE_CONFIG, (float) 0b00000000, (float) fwd_omni, (float) roboconPID);
+		}
+		osDelay(15);
 	}
 }
 
@@ -306,9 +360,10 @@ void Sensor(void *argument)
 		if(RNSEnquire(RNS_X_Y_IMU_LSA, &rns) == 1)
 		{
 			osMutexAcquire(sensorMutex, osWaitForever);
-			ret = HAL_UART_Receive(&huart3, (uint8_t*)py_buffer, 14,50);
-			sscanf(py_buffer, "%f,%f", &norm_cx, &norm_cy);
-			sender.current_yaw =  rns.RNS_data.common_buffer[0].data - 180;
+			ret = HAL_UART_Receive(&huart3, (uint8_t*)py_buffer, 4,10);
+			sscanf(py_buffer, "%f", &norm_cx);
+			receive_pos.current_x =  norm_cx;
+			sender.current_yaw =  rns.RNS_data.common_buffer[0].data  - 180;
 			sender.current_x_axis= rns.RNS_data.common_buffer[1].data;
 			sender.current_y_axis= rns.RNS_data.common_buffer[2].data;
 			osMutexRelease(sensorMutex);
@@ -330,12 +385,8 @@ void Sensor(void *argument)
 		snprintf(response, sizeof(response), "x: %.3f y: %.3f a: %.3f \n", sender.current_x_axis, sender.current_y_axis, sender.current_yaw);
 		UARTPrintString(&huart2, response);
 
-
-//		char python[80];
-//		snprintf(python, sizeof(python), "Received X: %d, Y: %d\n", norm_cx, norm_cy);
-		receive_pos.current_x =  norm_cx;
 		receive_pos.current_y =  norm_cy;
-		osDelay(30);
+		osDelay(15);
 	}
 }
 

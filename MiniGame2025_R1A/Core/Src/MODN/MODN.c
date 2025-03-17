@@ -59,4 +59,24 @@ void MODN(MODN_t *modn)
 
 }
 
+void MODN_objtrack(MODN_t *modn)
+{
+	if(modn->base == MODN_FWD_OMNI) {
+		*(modn->vel1) = *(modn->x_vel) * (0.70711) +  *(modn->y_vel) * (0.70711)  + *(modn->w_vel) * modn->d;
+		*(modn->vel2) = *(modn->x_vel) * (-0.70711) +  *(modn->y_vel) * (0.70711) - *(modn->w_vel) * modn->d;
+		*(modn->vel3) = *(modn->x_vel) * (-0.70711)  +  *(modn->y_vel) * (0.70711) + *(modn->w_vel) * modn->d;
+		*(modn->vel4) = *(modn->x_vel) * (0.70711)  +  *(modn->y_vel) * (0.70711)  - *(modn->w_vel) * modn->d;
+	}else if(modn->base == MODN_MECANUM){
+		*(modn->vel1) = *(modn->y_vel)*(1.0) + *(modn->x_vel)*(1.0)  + *(modn->w_vel)/*(modn->d + modn->e)*/;
+		*(modn->vel2) = *(modn->y_vel)*(1.0) + *(modn->x_vel)*(-1.0) - *(modn->w_vel)/*(modn->d + modn->e)*/;
+		*(modn->vel3) = *(modn->y_vel)*(1.0) + *(modn->x_vel)*(-1.0) + *(modn->w_vel)/*(modn->d + modn->e)*/;
+		*(modn->vel4) = *(modn->y_vel)*(1.0) + *(modn->x_vel)*(1.0)  - *(modn->w_vel)/*(modn->d + modn->e)*/;
+	}else if (modn->base == MODN_TRI_OMNI){
+		*(modn->vel3) =   *(modn->x_vel) * (1.0)  + *(modn->w_vel) * modn->d;
+		*(modn->vel1) = *(modn->y_vel) * (0.866) +  *(modn->x_vel) * (-0.5) + *(modn->w_vel) * modn->d;
+		*(modn->vel2) = *(modn->y_vel) * (0.866)  +  *(modn->x_vel) * (0.5) + *(modn->w_vel)*(-1.0) * modn->d;
+	}
+
+}
+
 /*********************************************/
