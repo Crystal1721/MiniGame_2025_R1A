@@ -63,6 +63,10 @@ typedef struct{
 	float current_yaw;
 	float current_x_axis;
 	float current_y_axis;
+	float v1;
+	float v2;
+	float v3;
+	float v4;
 	int Analog_sensor;
 
 }sensor;
@@ -357,15 +361,28 @@ void Sensor(void *argument)
 	while(1)
 	{
 		/* write value of wheel en, imu, x,y enc, and laser and write in queue */
-		if(RNSEnquire(RNS_X_Y_IMU_LSA, &rns) == 1)
+//		if(RNSEnquire(RNS_X_Y_IMU_LSA, &rns) == 1)
+//		{
+//			osMutexAcquire(sensorMutex, osWaitForever);
+//			ret = HAL_UART_Receive(&huart3, (uint8_t*)py_buffer, 4,10);
+//			sscanf(py_buffer, "%f", &norm_cx);
+//			receive_pos.current_x =  norm_cx;
+//			sender.current_yaw =  rns.RNS_data.common_buffer[0].data  - 180;
+//			sender.current_x_axis= rns.RNS_data.common_buffer[1].data;
+//			sender.current_y_axis= rns.RNS_data.common_buffer[2].data;
+//			osMutexRelease(sensorMutex);
+//		}
+		if (RNSEnquire(RNS_VEL_BOTH,&rns) == 1)
 		{
 			osMutexAcquire(sensorMutex, osWaitForever);
-			ret = HAL_UART_Receive(&huart3, (uint8_t*)py_buffer, 4,10);
-			sscanf(py_buffer, "%f", &norm_cx);
-			receive_pos.current_x =  norm_cx;
-			sender.current_yaw =  rns.RNS_data.common_buffer[0].data  - 180;
-			sender.current_x_axis= rns.RNS_data.common_buffer[1].data;
-			sender.current_y_axis= rns.RNS_data.common_buffer[2].data;
+			sender.v1 = rns.RNS_data.common_buffer[0].data;
+			sender.v2 = rns.RNS_data.common_buffer[1].data;
+			sender.v3 = rns.RNS_data.common_buffer[2].data;
+			sender.v4 = rns.RNS_data.common_buffer[3].data;
+			char response[80];
+	//		snprintf(response, sizeof(response), "x: %.3f y: %.3f a: %.3f \n", sender.current_x_axis, sender.current_y_axis, sender.current_yaw);
+			snprintf(response, sizeof(response), "%.3f,%.3f,%.3f,%.3f\n", sender.v1, sender.v2, sender.v3, sender.v4);
+			UARTPrintString(&huart2, response);
 			osMutexRelease(sensorMutex);
 		}
 
@@ -380,11 +397,6 @@ void Sensor(void *argument)
 		if (osMessageQueuePut(sensor_QueueHandle, &sender, 0,osWaitForever) == osOK) {
 			sema2 = osSemaphoreRelease(Data_CountSemphrHandle);
 		}
-
-		char response[80];
-		snprintf(response, sizeof(response), "x: %.3f y: %.3f a: %.3f \n", sender.current_x_axis, sender.current_y_axis, sender.current_yaw);
-		UARTPrintString(&huart2, response);
-
 		receive_pos.current_y =  norm_cy;
 		osDelay(15);
 	}
