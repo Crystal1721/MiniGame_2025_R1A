@@ -52,10 +52,10 @@ void RNS_config(CAN_HandleTypeDef* hcanx) {
 	RNSSet(&rns, RNS_B_LEFT_VEL_SATEU, 1.0, 1.0 / 18.3077, 19999.0);
 	RNSSet(&rns, RNS_B_RIGHT_VEL_SATEU, 1.0, 1.0 / 18.7605, 19999.0);
 
-	RNSSet(&rns, RNS_F_LEFT_VEL_PID,  0.55, 2.1, 0.009);
-	RNSSet(&rns, RNS_F_RIGHT_VEL_PID, 0.48, 2.9, 0.009);
-	RNSSet(&rns, RNS_B_LEFT_VEL_PID,  0.53, 2.5, 0.01);
-	RNSSet(&rns, RNS_B_RIGHT_VEL_PID, 0.48, 2.85, 0.01);
+	RNSSet(&rns, RNS_F_LEFT_VEL_PID,  1.45, 2.2, 0.009);
+	RNSSet(&rns, RNS_F_RIGHT_VEL_PID, 1.73, 3.0, 0.009);
+	RNSSet(&rns, RNS_B_LEFT_VEL_PID,  1.63, 2.6, 0.01);
+	RNSSet(&rns, RNS_B_RIGHT_VEL_PID, 1.58, 2.95, 0.01);
 
 	RNSSet(&rns, RNS_F_LEFT_VEL_FUZZY_PID_BASE, 0.2, 0.2, 0.2);
 	RNSSet(&rns, RNS_F_LEFT_VEL_FUZZY_PID_PARAM, 0.02, 0.02, 0.02);

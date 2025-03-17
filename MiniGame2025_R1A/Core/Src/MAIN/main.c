@@ -72,7 +72,7 @@ typedef struct{
 }sensor;
 
 
-sensor receive;
+
 
 /* Function prototypes */
 void Motion(void *argument);
@@ -153,8 +153,12 @@ int main(void)
 
 void Motion(void *argument)
 {
-	RNSEnquire(RNS_X_Y_IMU_LSA, &rns);
-	float inital_yaw_angle = (float)(rns.enq.enq_buffer[0].data);
+	sensor receive;
+	float inital_yaw_angle = 0;
+	if(RNSEnquire(RNS_X_Y_IMU_LSA, &rns) == 1)
+	{
+		inital_yaw_angle = rns.RNS_data.common_buffer[0].data;
+	}
 
 	MODN_t modn;
 	unsigned char base = MODN_FWD_OMNI;
@@ -167,7 +171,8 @@ void Motion(void *argument)
 
 	while(1)
 	{
-	    float current_yaw_angle = (float)(rns.enq.enq_buffer[0].data);
+		queue2 = osMessageQueueGet(sensor_QueueHandle, &receive, NULL, osWaitForever);
+	    float current_yaw_angle = receive.current_yaw;
 
 		float rad = (current_yaw_angle-inital_yaw_angle)*(M_PI/180.0f);
 
@@ -177,9 +182,13 @@ void Motion(void *argument)
 		xr = x_vel*cos(rad) + (- y_vel*sin(rad));
 		yr = -(x_vel*sin(rad) + y_vel*cos(rad));
 		wr = -ps4.joyR_x;
-//		wr = ps4.joyR_2 - ps4.joyL_2;
-//		xr = ps4.joyR_x;
-//		yr = ps4.joyL_y;
+
+		/* for tuning only */
+		/*
+			wr = ps4.joyR_2 - ps4.joyL_2;
+			xr = ps4.joyR_x;
+			yr = ps4.joyL_y;
+		*/
 
 		MODN(&modn);
 
@@ -262,7 +271,7 @@ void Retrivesball(void *argument)
 
 	while(1)
 	{
-		queue2 = osMessageQueueGet(sensor_QueueHandle, &receive, NULL, osWaitForever);
+
 		sema2 = osSemaphoreAcquire(Data_CountSemphrHandle, osWaitForever);
 		switch(ps4.button)
 		{
@@ -361,17 +370,17 @@ void Sensor(void *argument)
 	while(1)
 	{
 		/* write value of wheel en, imu, x,y enc, and laser and write in queue */
-//		if(RNSEnquire(RNS_X_Y_IMU_LSA, &rns) == 1)
-//		{
-//			osMutexAcquire(sensorMutex, osWaitForever);
-//			ret = HAL_UART_Receive(&huart3, (uint8_t*)py_buffer, 4,10);
-//			sscanf(py_buffer, "%f", &norm_cx);
-//			receive_pos.current_x =  norm_cx;
-//			sender.current_yaw =  rns.RNS_data.common_buffer[0].data  - 180;
-//			sender.current_x_axis= rns.RNS_data.common_buffer[1].data;
-//			sender.current_y_axis= rns.RNS_data.common_buffer[2].data;
-//			osMutexRelease(sensorMutex);
-//		}
+		if(RNSEnquire(RNS_X_Y_IMU_LSA, &rns) == 1)
+		{
+			osMutexAcquire(sensorMutex, osWaitForever);
+			ret = HAL_UART_Receive(&huart3, (uint8_t*)py_buffer, 4,10);
+			sscanf(py_buffer, "%f", &norm_cx);
+			receive_pos.current_x =  norm_cx;
+			sender.current_yaw =  rns.RNS_data.common_buffer[0].data ;
+			sender.current_x_axis= rns.RNS_data.common_buffer[1].data;
+			sender.current_y_axis= rns.RNS_data.common_buffer[2].data;
+			osMutexRelease(sensorMutex);
+		}
 		if (RNSEnquire(RNS_VEL_BOTH,&rns) == 1)
 		{
 			osMutexAcquire(sensorMutex, osWaitForever);
@@ -381,7 +390,7 @@ void Sensor(void *argument)
 			sender.v4 = rns.RNS_data.common_buffer[3].data;
 			char response[80];
 	//		snprintf(response, sizeof(response), "x: %.3f y: %.3f a: %.3f \n", sender.current_x_axis, sender.current_y_axis, sender.current_yaw);
-			snprintf(response, sizeof(response), "%.3f,%.3f,%.3f,%.3f\n", sender.v1, sender.v2, sender.v3, sender.v4);
+			snprintf(response, sizeof(response), "%.3f,%.3f,%.3f,%.3f\n", fabs(sender.v1), sender.v2, sender.v3, fabs(sender.v4));
 			UARTPrintString(&huart2, response);
 			osMutexRelease(sensorMutex);
 		}
