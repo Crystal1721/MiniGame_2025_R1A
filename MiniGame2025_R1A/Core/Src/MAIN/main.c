@@ -28,7 +28,7 @@ float set_yaw, yaw_offset, yaw_angle, x_offset, y_offset;
 int pers_ctl_flag, imu_lock= 0;
 
 int feeding_flag = 0;
-int tt_flag = 0;
+int tt_flag = 1;
 int start_feed = 0;
 int pid_flag = 0;
 float previous_yaw;
@@ -185,16 +185,16 @@ void Motion(void *argument)
 		wr = -ps4.joyR_x;
 
 		/* for tuning only */
-		/*
-			wr = ps4.joyR_2 - ps4.joyL_2;
-			xr = ps4.joyR_x;
-			yr = ps4.joyL_y;
-		*/
+
+//			wr = ps4.joyR_2 - ps4.joyL_2;
+//			xr = ps4.joyR_x;
+//			yr = ps4.joyL_y;
+
 
 		MODN(&modn);
 
 
-		if((ps4.joyL_x !=0 || ps4.joyL_y !=0) && pid_flag == 0)
+		if((ps4.joyL_x !=0 || ps4.joyL_y !=0|| ps4.joyR_x !=0) && pid_flag == 0)
 		{
 			RNSVelocity(vel1*2.0,vel2*2.0,vel3*2.0,vel4*2.0,&rns);
 
@@ -217,6 +217,9 @@ void Motion(void *argument)
 			while(ps4.button == SQUARE);
 			StopBDC(&BDC7);
 			StopBDC(&BDC8);
+			start_feed = 0;
+			tt_flag = 0;
+			pid_flag = 0;
 			break;
 		case PS:
 			while(ps4.button == PS);
@@ -245,22 +248,22 @@ void Feeding(void *argument)
 		if(feeding_flag && tt_flag)
 		{
 //			osDelay(200);
-			tt_flag = 0;
 			feeding_flag = 0;
 			start_feed = 1;
 			pid_flag = 0;
-			WriteBDC(&BDC8,750);
+			WriteBDC(&BDC8,950);
 		}
 		if(start_feed)
 		{
 			ServoSetAngle(&servo_red,(fabs(ps4.joyR_2))*100);
-			if(ps4.button == TOUCH)
-			{
-				while(ps4.button == TOUCH);
-				start_feed = 0;
-				pid_flag = 0;
-//				StopBDC(&BDC8);
-			}
+//			if(ps4.button == TOUCH)
+//			{
+//				while(ps4.button == TOUCH);
+//				start_feed = 0;
+//				tt_flag = 0;
+//				pid_flag = 0;
+////				StopBDC(&BDC8);
+//			}
 		}
 		osDelay(5);
 	}
@@ -285,7 +288,7 @@ void Retrivesball(void *argument)
 			ServoSetAngle(&servo_blk_2,75);
 //			yaw_offset = ((receive_pos.current_x - (CAM_WIDTH/2.0))*FOV/CAM_WIDTH) + receive.current_yaw;
 			pid_flag = 1;
-			tt_flag = 0;
+			tt_flag = 1;
 			break;
 		case R1: // Close Servo
 			while(ps4.button == R1);
@@ -304,39 +307,39 @@ void Retrivesball(void *argument)
 			if(ps4.button == UP)
 			{
 //				while(ps4.button == UP);
-				WriteBDC(&BDC8,1100);
+				WriteBDC(&BDC8,1700);
 			}
 			else if (ps4.button == DOWN)
 			{
 //				while(ps4.button == DOWN);
-				WriteBDC(&BDC8,-750);
+				WriteBDC(&BDC8,-950);
 			}
 			else if (ps4.button == TRIANGLE)
 			{
 //				while(ps4.button == DOWN);
 				if(pid_flag){
-					WriteBDC(&BDC7,750);
+					WriteBDC(&BDC7,950);
 				}
 				else{
-					WriteBDC(&BDC7,1100);
+					WriteBDC(&BDC7,1700);
 				}
 			}
 			else if (ps4.button == CROSS)
 			{
 //				while(ps4.button == DOWN);
-				WriteBDC(&BDC7,-750);
+				WriteBDC(&BDC7,-950);
 			}
 			else if (ps4.button == (TRIANGLE|UP))
 			{
 //				while(ps4.button == DOWN);
-				WriteBDC(&BDC7,1100);
-				WriteBDC(&BDC8,1100);
+				WriteBDC(&BDC7,1700);
+				WriteBDC(&BDC8,1700);
 			}
 			else if (ps4.button == (DOWN|CROSS))
 			{
 //				while(ps4.button == DOWN);
-				WriteBDC(&BDC7,-750);
-				WriteBDC(&BDC8,-750);
+				WriteBDC(&BDC7,-950);
+				WriteBDC(&BDC8,-950);
 			}else
 			{
 				StopBDC(&BDC7);
