@@ -207,8 +207,7 @@ void Motion(void *argument)
 		{
 			RNSStop(&rns);
 		}
-//		PIDDelayInit (&ltt);
-//		PIDDelayInit (&utt);
+
 			/* Process data */
 
 		switch(ps4.button)
