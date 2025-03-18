@@ -171,6 +171,7 @@ void Motion(void *argument)
 
 	while(1)
 	{
+
 		queue2 = osMessageQueueGet(sensor_QueueHandle, &receive, NULL, osWaitForever);
 	    float current_yaw_angle = receive.current_yaw;
 
@@ -193,10 +194,14 @@ void Motion(void *argument)
 		MODN(&modn);
 
 
-		if(ps4.joyR_x !=0 || ps4.joyL_y !=0 || ps4.joyR_2 !=0 || ps4.joyL_2 !=0)
+		if((ps4.joyL_x !=0 || ps4.joyL_y !=0) && pid_flag == 0)
 		{
 			RNSVelocity(vel1*2.0,vel2*2.0,vel3*2.0,vel4*2.0,&rns);
 
+		}
+		else if (pid_flag == 1)
+		{
+			RNSVelocity(vel1*1.0,vel2*1.0,vel3*1.0,vel4*1.0,&rns);
 		}
 		else
 		{
@@ -268,7 +273,6 @@ void Retrivesball(void *argument)
 	 *  2) when servo is close, the timing belt start rotates
 	 */
 
-
 	while(1)
 	{
 
@@ -279,7 +283,6 @@ void Retrivesball(void *argument)
 			while(ps4.button == L1);
 			ServoSetAngle(&servo_blk_1,10);
 			ServoSetAngle(&servo_blk_2,75);
-			WriteBDC(&BDC7,750);
 //			yaw_offset = ((receive_pos.current_x - (CAM_WIDTH/2.0))*FOV/CAM_WIDTH) + receive.current_yaw;
 			pid_flag = 1;
 			tt_flag = 0;
@@ -301,7 +304,7 @@ void Retrivesball(void *argument)
 			if(ps4.button == UP)
 			{
 //				while(ps4.button == UP);
-				WriteBDC(&BDC8,1550);
+				WriteBDC(&BDC8,1100);
 			}
 			else if (ps4.button == DOWN)
 			{
@@ -311,7 +314,12 @@ void Retrivesball(void *argument)
 			else if (ps4.button == TRIANGLE)
 			{
 //				while(ps4.button == DOWN);
-				WriteBDC(&BDC7,1550);
+				if(pid_flag){
+					WriteBDC(&BDC7,750);
+				}
+				else{
+					WriteBDC(&BDC7,1100);
+				}
 			}
 			else if (ps4.button == CROSS)
 			{
@@ -321,8 +329,8 @@ void Retrivesball(void *argument)
 			else if (ps4.button == (TRIANGLE|UP))
 			{
 //				while(ps4.button == DOWN);
-				WriteBDC(&BDC7,1550);
-				WriteBDC(&BDC8,1550);
+				WriteBDC(&BDC7,1100);
+				WriteBDC(&BDC8,1100);
 			}
 			else if (ps4.button == (DOWN|CROSS))
 			{
@@ -336,22 +344,22 @@ void Retrivesball(void *argument)
 			}
 		}
 		/* start automation */
-		if(pid_flag)
-		{
-			if(ps4.button == UP)
-			{
-//				while(ps4.button == UP);
-				WriteBDC(&BDC8,1550);
-			}
-//			Err_angle = fmod(yaw_offset - receive.current_yaw + 540, 360) - 180;
-//			wr = F_angle;
-////			yr = ps4.joyL_y;
-//			MODN(&Modn);
-//			RNSVelocity(v1*2.0,v2*2.0,v3*2.0,v4*2.0,&rns);
-		}
-		else{
-			RNSSet(&rns, RNS_DEVICE_CONFIG, (float) 0b00000000, (float) fwd_omni, (float) roboconPID);
-		}
+//		if(pid_flag)
+//		{
+//			if(ps4.button == UP)
+//			{
+////				while(ps4.button == UP);
+//				WriteBDC(&BDC8,1550);
+//			}
+////			Err_angle = fmod(yaw_offset - receive.current_yaw + 540, 360) - 180;
+////			wr = F_angle;
+//////			yr = ps4.joyL_y;
+////			MODN(&Modn);
+////			RNSVelocity(v1*2.0,v2*2.0,v3*2.0,v4*2.0,&rns);
+//		}
+//		else{
+//			RNSSet(&rns, RNS_DEVICE_CONFIG, (float) 0b00000000, (float) fwd_omni, (float) roboconPID);
+//		}
 		osDelay(15);
 	}
 }
