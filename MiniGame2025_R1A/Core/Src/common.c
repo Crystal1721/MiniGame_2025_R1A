@@ -12,9 +12,9 @@ void set(void) {
 //	PSxInitDMA(&ps4,&hi2c1);
 	TIMxInit(&htim6, 20000, 84, 5, 0); //20ms
 	RNS_config(&hcan1);
-	MODNRobotBaseInit(MODN_FWD_OMNI, 1.0, 1.0, &Modn); // d is half of wheel base(distance btw frt and bck). e is half of track width (left & right)
-	MODNRobotVelInit(&xr, &yr, &wr, &Modn);
-	MODNWheelVelInit(&v1, &v2, &v3, &v4, &Modn);
+//	MODNRobotBaseInit(MODN_FWD_OMNI, 1.0, 1.0, &Modn); // d is half of wheel base(distance btw frt and bck). e is half of track width (left & right)
+//	MODNRobotVelInit(&xr, &yr, &wr, &Modn);
+//	MODNWheelVelInit(&v1, &v2, &v3, &v4, &Modn);
 	PSxSlaveInit(&ps4,&hi2c1);
 
 //	R6091U_Init(&imu,&huart2);

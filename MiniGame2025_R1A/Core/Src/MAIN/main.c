@@ -194,14 +194,10 @@ void Motion(void *argument)
 		MODN(&modn);
 
 
-		if((ps4.joyL_x !=0 || ps4.joyL_y !=0|| ps4.joyR_x !=0) && pid_flag == 0)
+		if((ps4.joyL_x !=0 || ps4.joyL_y !=0|| ps4.joyR_x !=0))
 		{
-			RNSVelocity(vel1*2.0,vel2*2.0,vel3*2.0,vel4*2.0,&rns);
+			RNSVelocity(vel1*2.5,vel2*2.5,vel3*2.5,vel4*2.5,&rns);
 
-		}
-		else if (pid_flag == 1)
-		{
-			RNSVelocity(vel1*1.0,vel2*1.0,vel3*1.0,vel4*1.0,&rns);
 		}
 		else
 		{
@@ -217,7 +213,7 @@ void Motion(void *argument)
 			StopBDC(&BDC7);
 			StopBDC(&BDC8);
 			start_feed = 0;
-			tt_flag = 0;
+			tt_flag = 1;
 			pid_flag = 0;
 			break;
 		case PS:
@@ -246,23 +242,15 @@ void Feeding(void *argument)
 		sema1 = osSemaphoreAcquire(Data_CountSemphrHandle, osWaitForever);
 		if(feeding_flag && tt_flag)
 		{
-//			osDelay(200);
 			feeding_flag = 0;
 			start_feed = 1;
-			pid_flag = 0;
-			WriteBDC(&BDC8,950);
+//			pid_flag = 0;
+
 		}
 		if(start_feed)
 		{
+			WriteBDC(&BDC8,950);
 			ServoSetAngle(&servo_red,(fabs(ps4.joyR_2))*100);
-//			if(ps4.button == TOUCH)
-//			{
-//				while(ps4.button == TOUCH);
-//				start_feed = 0;
-//				tt_flag = 0;
-//				pid_flag = 0;
-////				StopBDC(&BDC8);
-//			}
 		}
 		osDelay(5);
 	}
@@ -281,87 +269,59 @@ void Retrivesball(void *argument)
 		sema2 = osSemaphoreAcquire(Data_CountSemphrHandle, osWaitForever);
 		switch(ps4.button)
 		{
-		case L1: // Open Servo
-			while(ps4.button == L1);
-			ServoSetAngle(&servo_blk_1,10);
-			ServoSetAngle(&servo_blk_2,75);
-//			yaw_offset = ((receive_pos.current_x - (CAM_WIDTH/2.0))*FOV/CAM_WIDTH) + receive.current_yaw;
-			pid_flag = 1;
-			tt_flag = 1;
-			break;
-		case R1: // Close Servo
-			while(ps4.button == R1);
-			ServoSetAngle(&servo_blk_1,75);
-			ServoSetAngle(&servo_blk_2,10);
-			osDelay(20);
-			tt_flag = 1;
-			pid_flag = 0;
-			RNSStop(&rns);
+		case TRIANGLE:
+			while(ps4.button == TRIANGLE);
+			tt_flag =! tt_flag;
 			break;
 		}
 
 		if(tt_flag)
 		{
 			/* may add some manually control to control timing belt */
-			if(ps4.button == UP)
+			if(ps4.button == L1)
 			{
-//				while(ps4.button == UP);
-				WriteBDC(&BDC8,1700);
+				WriteBDC(&BDC8,1750);
 			}
-			else if (ps4.button == DOWN)
+			else if (ps4.button == R1)
 			{
-//				while(ps4.button == DOWN);
+				WriteBDC(&BDC7,1750);
+//				WriteBDC(&BDC8,-950);
+			}
+			else if ( ps4.button == (R1|L1))
+			{
+				WriteBDC(&BDC7,1750);
+				WriteBDC(&BDC8,1750);
+			}
+			else
+			{
+				StopBDC(&BDC7);
+//				WriteBDC(&BDC7,950);
+				StopBDC(&BDC8);
+			}
+
+		}
+		else
+		{
+			if(ps4.button == L1)
+			{
 				WriteBDC(&BDC8,-950);
 			}
-			else if (ps4.button == TRIANGLE)
+			else if (ps4.button == R1)
 			{
-//				while(ps4.button == DOWN);
-				if(pid_flag){
-					WriteBDC(&BDC7,950);
-				}
-				else{
-					WriteBDC(&BDC7,1700);
-				}
-			}
-			else if (ps4.button == CROSS)
-			{
-//				while(ps4.button == DOWN);
 				WriteBDC(&BDC7,-950);
+//				WriteBDC(&BDC8,-950);
 			}
-			else if (ps4.button == (TRIANGLE|UP))
+			else if ( ps4.button == (R1|L1))
 			{
-//				while(ps4.button == DOWN);
-				WriteBDC(&BDC7,1700);
-				WriteBDC(&BDC8,1700);
-			}
-			else if (ps4.button == (DOWN|CROSS))
-			{
-//				while(ps4.button == DOWN);
 				WriteBDC(&BDC7,-950);
 				WriteBDC(&BDC8,-950);
-			}else
+			}
+			else
 			{
 				StopBDC(&BDC7);
 				StopBDC(&BDC8);
 			}
 		}
-		/* start automation */
-//		if(pid_flag)
-//		{
-//			if(ps4.button == UP)
-//			{
-////				while(ps4.button == UP);
-//				WriteBDC(&BDC8,1550);
-//			}
-////			Err_angle = fmod(yaw_offset - receive.current_yaw + 540, 360) - 180;
-////			wr = F_angle;
-//////			yr = ps4.joyL_y;
-////			MODN(&Modn);
-////			RNSVelocity(v1*2.0,v2*2.0,v3*2.0,v4*2.0,&rns);
-//		}
-//		else{
-//			RNSSet(&rns, RNS_DEVICE_CONFIG, (float) 0b00000000, (float) fwd_omni, (float) roboconPID);
-//		}
 		osDelay(15);
 	}
 }
@@ -427,13 +387,13 @@ void TIM6_DAC_IRQHandler(void)
 
 	sema1 = osSemaphoreRelease(Data_CountSemphrHandle);
 	led1=!led1;
-	if(pid_flag)
-	{
-		PID(&imu_rotate);
-	}
-	else{
-		PIDDelayInit(&imu_rotate);
-	}
+//	if(pid_flag)
+//	{
+//		PID(&imu_rotate);
+//	}
+//	else{
+//		PIDDelayInit(&imu_rotate);
+//	}
 	PSxConnectionHandler(&ps4);
 	HAL_TIM_IRQHandler(&htim6);
 }
