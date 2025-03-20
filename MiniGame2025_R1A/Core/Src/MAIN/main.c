@@ -33,8 +33,9 @@ int start_feed = 0;
 int pid_flag = 0;
 float previous_yaw;
 
-int state =0;
-float angle_i_want = 180.0f;
+int state = 1;
+float angle_i_want_previous = 180.0f;
+float angle_i_want_current = 180.0f;
 
 
 /* Task handles */
@@ -76,7 +77,7 @@ typedef struct{
 
 }sensor;
 
-
+sensor receive;
 
 
 /* Function prototypes */
@@ -126,12 +127,12 @@ int main(void)
 
 	/* Definition of Semaphore */
 	const osSemaphoreAttr_t Data_CountSemphr_attributes = {
-				.name = "DatCountSemphr"
+			.name = "DatCountSemphr"
 	};
 
 	/* Definition of Mutex */
 	const osMutexAttr_t Sensor_Mutex_attributes = {
-				.name = "sensorMutex"
+			.name = "sensorMutex"
 	};
 
 	/* Kernel init */
@@ -149,7 +150,7 @@ int main(void)
 	xFeedingTaskHandle = osThreadNew(Feeding, NULL, &Feeding_Task_attributes);
 	xSensorTaskHandle = osThreadNew(Sensor, NULL, &Sensor_Task_attributes);
 	xretrivesballTaskHandle = osThreadNew(Retrivesball, NULL, &RetriveBall_Task_attributes);
-//	imu_lock_handler = osThreadNew(imulock,NULL,NULL);
+	//	imu_lock_handler = osThreadNew(imulock,NULL,NULL);
 
 	/* kernel start*/
 	osKernelStart();
@@ -159,7 +160,7 @@ int main(void)
 
 void Motion(void *argument)
 {
-	sensor receive;
+
 	float inital_yaw_angle = 0;
 	if(RNSEnquire(RNS_X_Y_IMU_LSA, &rns) == 1)
 	{
@@ -183,25 +184,6 @@ void Motion(void *argument)
 		if (state == 1)
 		{
 			float current_yaw_angle = receive.current_yaw;
-			Err_angle =  angle_i_want - current_yaw_angle;
-//			if (fabs(Err_angle)<0.1)
-//			{
-//				F_angle = 0;
-//				state = 0;
-//			}
-//			else
-//			{
-//				state = 1;
-//			}
-//			else{PID(angle);}
-			wr = F_angle;
-			MODN(&modn);
-//			RNSVelocity(2+F_angle,2+F_angle,2+F_angle,2+F_angle,&rns);
-			RNSVelocity(vel1,vel2,vel3,vel4,&rns);
-		}
-		else if(state == 0)
-		{
-		    float current_yaw_angle = receive.current_yaw;
 
 			float rad = (current_yaw_angle-inital_yaw_angle)*(M_PI/180.0f);
 
@@ -210,30 +192,86 @@ void Motion(void *argument)
 
 			xr = x_vel*cos(rad) + (- y_vel*sin(rad));
 			yr = -(x_vel*sin(rad) + y_vel*cos(rad));
-			wr = -ps4.joyR_x;
 
-			/* for tuning only */
+//			if(ps4.joyR_x > 0.95)
+//			{
+//				//				angle_i_want_current ++;
+//				angle_i_want_current = angle_i_want_current -1;
+//
+//			}
+//			else if (ps4.joyR_x < -0.95)
+//			{
+//				//				angle_i_want_current --;
+//				angle_i_want_current = angle_i_want_current +1;
+//
+//			}
+//			else
+//			{
+//				angle_i_want_current = angle_i_want_current;
+//			}
+//
+//
+//			if(angle_i_want_current> 360.0f) angle_i_want_current = angle_i_want_current - 360.0f;
+//			else if(angle_i_want_current < 0.0f) angle_i_want_current = angle_i_want_current + 360.0f;
+//			if (angle_i_want_current>540.0f) angle_i_want_current = 180.0f;
 
-	//			wr = ps4.joyR_2 - ps4.joyL_2;
-	//			xr = ps4.joyR_x;
-	//			yr = ps4.joyL_y;
 
-
-			MODN(&modn);
-
-
-			if((ps4.joyL_x !=0 || ps4.joyL_y !=0|| ps4.joyR_x !=0))
+			if( ps4.joyR_x !=0)
 			{
-				RNSVelocity(vel1*2.5,vel2*2.5,vel3*2.5,vel4*2.5,&rns);
-
+				angle_i_want_current = receive.current_yaw;
+				wr = -ps4.joyR_x;
+				MODN(&modn);
+				RNSVelocity(vel1*3.0,vel2*3.0,vel3*3.0,vel4*3.0,&rns);
 			}
 			else
 			{
-				RNSStop(&rns);
-			}
-		}
 
-			/* Process data */
+//				if(ps4.button == CIRCLE)
+//				{
+//
+//				}
+				Err_angle =  angle_i_want_current  - current_yaw_angle;
+
+				wr = F_angle;
+				MODN(&modn);
+				RNSVelocity(vel1*3.0,vel2*3.0,vel3*3.0,vel4*3.0,&rns);
+			}
+
+		}
+//		else if(state == 0)
+//		{
+//			float current_yaw_angle = receive.current_yaw;
+//
+//			float rad = (current_yaw_angle-inital_yaw_angle)*(M_PI/180.0f);
+//
+//			float x_vel = (float) ps4.joyL_x;
+//			float y_vel = -(float) ps4.joyL_y;
+//
+//			xr = x_vel*cos(rad) + (- y_vel*sin(rad));
+//			yr = -(x_vel*sin(rad) + y_vel*cos(rad));
+//			wr = -ps4.joyR_x;
+//
+//			/* for tuning only */
+//			//
+//			//				wr = ps4.joyR_2 - ps4.joyL_2;
+//			//				xr = ps4.joyR_x;
+//			//				yr = ps4.joyL_y;
+//
+//
+//			MODN(&modn);
+//
+//
+//			if((ps4.joyL_x !=0 || ps4.joyL_y !=0|| ps4.joyR_x !=0))
+//			{
+//				RNSVelocity(vel1*3.0,vel2*3.0,vel3*3.0,vel4*3.0,&rns);
+//			}
+//			else
+//			{
+//				RNSStop(&rns);
+//			}
+//		}
+
+		/* Process data */
 
 		switch(ps4.button)
 		{
@@ -252,10 +290,10 @@ void Motion(void *argument)
 			RNSStop(&rns);
 			HAL_NVIC_SystemReset();
 			break;
-		case UP:
-			while(ps4.button == UP);
-			state =! state;
-			break;
+//		case UP:
+//			while(ps4.button == UP);
+//			state =! state;
+//			break;
 		}
 		osDelay(10);
 	}
@@ -280,12 +318,12 @@ void Feeding(void *argument)
 		{
 			feeding_flag = 0;
 			start_feed = 1;
-//			pid_flag = 0;
+			//			pid_flag = 0;
 
 		}
 		if(start_feed)
 		{
-			WriteBDC(&BDC8,950);
+			//			WriteBDC(&BDC8,1550);
 			ServoSetAngle(&servo_red,(fabs(ps4.joyR_2))*100);
 		}
 		osDelay(5);
@@ -316,22 +354,25 @@ void Retrivesball(void *argument)
 			/* may add some manually control to control timing belt */
 			if(ps4.button == L1)
 			{
-				WriteBDC(&BDC8,1750);
+				WriteBDC(&BDC8,1850);
+				osDelay(2);
 			}
 			else if (ps4.button == R1)
 			{
-				WriteBDC(&BDC7,1750);
-//				WriteBDC(&BDC8,-950);
+				WriteBDC(&BDC7,2000);
+				osDelay(2);
+				//				WriteBDC(&BDC8,-950);
 			}
-			else if ( ps4.button == (R1|L1))
+			else if (ps4.button == (R1|L1))
 			{
-				WriteBDC(&BDC7,1750);
-				WriteBDC(&BDC8,1750);
+				WriteBDC(&BDC7,2000);
+				WriteBDC(&BDC8,1850);
+				osDelay(2);
 			}
 			else
 			{
 				StopBDC(&BDC7);
-//				WriteBDC(&BDC7,950);
+				//				WriteBDC(&BDC7,950);
 				StopBDC(&BDC8);
 			}
 
@@ -340,17 +381,20 @@ void Retrivesball(void *argument)
 		{
 			if(ps4.button == L1)
 			{
-				WriteBDC(&BDC8,-950);
+				WriteBDC(&BDC8,-1150);
+				osDelay(2);
 			}
 			else if (ps4.button == R1)
 			{
-				WriteBDC(&BDC7,-950);
-//				WriteBDC(&BDC8,-950);
+				WriteBDC(&BDC7,-1150);
+				osDelay(2);
+				//				WriteBDC(&BDC8,-950);
 			}
 			else if ( ps4.button == (R1|L1))
 			{
-				WriteBDC(&BDC7,-950);
-				WriteBDC(&BDC8,-950);
+				WriteBDC(&BDC7,-1150);
+				WriteBDC(&BDC8,-1150);
+				osDelay(2);
 			}
 			else
 			{
@@ -386,10 +430,10 @@ void Sensor(void *argument)
 			sender.current_x_axis= rns.RNS_data.common_buffer[1].data;
 			sender.current_y_axis= rns.RNS_data.common_buffer[2].data;
 			char response[80];
-
 			snprintf(response, sizeof(response), "%.3f \n",sender.current_yaw);
-//			snprintf(response, sizeof(response), "%.3f,%.3f,%.3f,%.3f\n", fabs(sender.v1), sender.v2, sender.v3, fabs(sender.v4));
+			//			snprintf(response, sizeof(response), "%.3f,%.3f,%.3f,%.3f\n", fabs(sender.v1), sender.v2, sender.v3, fabs(sender.v4));
 			UARTPrintString(&huart2, response);
+
 
 			osMutexRelease(sensorMutex);
 		}
@@ -400,6 +444,7 @@ void Sensor(void *argument)
 			sender.v2 = rns.RNS_data.common_buffer[1].data;
 			sender.v3 = rns.RNS_data.common_buffer[2].data;
 			sender.v4 = rns.RNS_data.common_buffer[3].data;
+
 			osMutexRelease(sensorMutex);
 		}
 
@@ -415,7 +460,7 @@ void Sensor(void *argument)
 			sema2 = osSemaphoreRelease(Data_CountSemphrHandle);
 		}
 		receive_pos.current_y =  norm_cy;
-		osDelay(15);
+		osDelay(16);
 	}
 }
 

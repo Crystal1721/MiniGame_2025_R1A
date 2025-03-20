@@ -23,7 +23,7 @@ void set(void) {
 
 	PIDSourceInit (&Err_angle, &F_angle, &imu_rotate);
 	PIDDelayInit (&imu_rotate);
-	PIDGainInit(0.02, 1.0, 1/180.0, 180, 0.05, 0.0, 0.0,  2*3.1415926*10.0,  &imu_rotate);
+	PIDGainInit(0.02, 1.0, 1/180.0, 1.0, 20.0, 0.10, 1.0,  2*3.1415926*10.0,  &imu_rotate);
 
 	ServoxInit(&servo_blk_1, &htim3, GPIOA, GPIO_PIN_0, TIM_CHANNEL_4);
 	ServoxInit(&servo_blk_2, &htim3, GPIOA, GPIO_PIN_1, TIM_CHANNEL_3);
@@ -52,7 +52,7 @@ void RNS_config(CAN_HandleTypeDef* hcanx) {
 	RNSSet(&rns, RNS_B_LEFT_VEL_SATEU, 1.0, 1.0 / 18.3077, 19999.0);
 	RNSSet(&rns, RNS_B_RIGHT_VEL_SATEU, 1.0, 1.0 / 18.7605, 19999.0);
 
-	RNSSet(&rns, RNS_F_LEFT_VEL_PID,  2.85, 3.2, 0.055);
+	RNSSet(&rns, RNS_F_LEFT_VEL_PID,  2.45, 3.2, 0.055);
 	RNSSet(&rns, RNS_F_RIGHT_VEL_PID, 3.23, 4.0, 0.055);
 	RNSSet(&rns, RNS_B_LEFT_VEL_PID,  3.13, 3.7, 0.056);
 	RNSSet(&rns, RNS_B_RIGHT_VEL_PID, 3.08, 3.75, 0.056);
