@@ -33,11 +33,16 @@ int start_feed = 0;
 int pid_flag = 0;
 float previous_yaw;
 
+int state =0;
+float angle_i_want = 180.0f;
+
+
 /* Task handles */
 osThreadId_t xMotionTaskHandle;
 osThreadId_t xFeedingTaskHandle;
 osThreadId_t xSensorTaskHandle;
-osThreadId_t xretrivesballTaskHandle ;
+osThreadId_t xretrivesballTaskHandle;
+//osThreadId_t imu_lock_handler;
 
 /* Semaphore Handles*/
 osSemaphoreId_t Data_CountSemphrHandle;
@@ -79,6 +84,7 @@ void Motion(void *argument);
 void Feeding(void *argument);
 void Sensor(void *argument);
 void Retrivesball(void *argument);
+void imulock(void*parameters);
 
 int main(void)
 {
@@ -143,12 +149,12 @@ int main(void)
 	xFeedingTaskHandle = osThreadNew(Feeding, NULL, &Feeding_Task_attributes);
 	xSensorTaskHandle = osThreadNew(Sensor, NULL, &Sensor_Task_attributes);
 	xretrivesballTaskHandle = osThreadNew(Retrivesball, NULL, &RetriveBall_Task_attributes);
+//	imu_lock_handler = osThreadNew(imulock,NULL,NULL);
+
 	/* kernel start*/
 	osKernelStart();
 
 }
-
-
 
 
 void Motion(void *argument)
@@ -173,35 +179,58 @@ void Motion(void *argument)
 	{
 
 		queue2 = osMessageQueueGet(sensor_QueueHandle, &receive, NULL, osWaitForever);
-	    float current_yaw_angle = receive.current_yaw;
 
-		float rad = (current_yaw_angle-inital_yaw_angle)*(M_PI/180.0f);
-
-		float x_vel = (float) ps4.joyL_x;
-		float y_vel = -(float) ps4.joyL_y;
-
-		xr = x_vel*cos(rad) + (- y_vel*sin(rad));
-		yr = -(x_vel*sin(rad) + y_vel*cos(rad));
-		wr = -ps4.joyR_x;
-
-		/* for tuning only */
-
-//			wr = ps4.joyR_2 - ps4.joyL_2;
-//			xr = ps4.joyR_x;
-//			yr = ps4.joyL_y;
-
-
-		MODN(&modn);
-
-
-		if((ps4.joyL_x !=0 || ps4.joyL_y !=0|| ps4.joyR_x !=0))
+		if (state == 1)
 		{
-			RNSVelocity(vel1*2.5,vel2*2.5,vel3*2.5,vel4*2.5,&rns);
-
+			float current_yaw_angle = receive.current_yaw;
+			Err_angle =  angle_i_want - current_yaw_angle;
+//			if (fabs(Err_angle)<0.1)
+//			{
+//				F_angle = 0;
+//				state = 0;
+//			}
+//			else
+//			{
+//				state = 1;
+//			}
+//			else{PID(angle);}
+			wr = F_angle;
+			MODN(&modn);
+//			RNSVelocity(2+F_angle,2+F_angle,2+F_angle,2+F_angle,&rns);
+			RNSVelocity(vel1,vel2,vel3,vel4,&rns);
 		}
-		else
+		else if(state == 0)
 		{
-			RNSStop(&rns);
+		    float current_yaw_angle = receive.current_yaw;
+
+			float rad = (current_yaw_angle-inital_yaw_angle)*(M_PI/180.0f);
+
+			float x_vel = (float) ps4.joyL_x;
+			float y_vel = -(float) ps4.joyL_y;
+
+			xr = x_vel*cos(rad) + (- y_vel*sin(rad));
+			yr = -(x_vel*sin(rad) + y_vel*cos(rad));
+			wr = -ps4.joyR_x;
+
+			/* for tuning only */
+
+	//			wr = ps4.joyR_2 - ps4.joyL_2;
+	//			xr = ps4.joyR_x;
+	//			yr = ps4.joyL_y;
+
+
+			MODN(&modn);
+
+
+			if((ps4.joyL_x !=0 || ps4.joyL_y !=0|| ps4.joyR_x !=0))
+			{
+				RNSVelocity(vel1*2.5,vel2*2.5,vel3*2.5,vel4*2.5,&rns);
+
+			}
+			else
+			{
+				RNSStop(&rns);
+			}
 		}
 
 			/* Process data */
@@ -223,6 +252,10 @@ void Motion(void *argument)
 			RNSStop(&rns);
 			HAL_NVIC_SystemReset();
 			break;
+		case UP:
+			while(ps4.button == UP);
+			state =! state;
+			break;
 		}
 		osDelay(10);
 	}
@@ -239,6 +272,9 @@ void Feeding(void *argument)
 
 	while(1)
 	{
+		/* preserve for the imu lock */
+
+
 		sema1 = osSemaphoreAcquire(Data_CountSemphrHandle, osWaitForever);
 		if(feeding_flag && tt_flag)
 		{
@@ -349,6 +385,12 @@ void Sensor(void *argument)
 			sender.current_yaw =  rns.RNS_data.common_buffer[0].data ;
 			sender.current_x_axis= rns.RNS_data.common_buffer[1].data;
 			sender.current_y_axis= rns.RNS_data.common_buffer[2].data;
+			char response[80];
+
+			snprintf(response, sizeof(response), "%.3f \n",sender.current_yaw);
+//			snprintf(response, sizeof(response), "%.3f,%.3f,%.3f,%.3f\n", fabs(sender.v1), sender.v2, sender.v3, fabs(sender.v4));
+			UARTPrintString(&huart2, response);
+
 			osMutexRelease(sensorMutex);
 		}
 		if (RNSEnquire(RNS_VEL_BOTH,&rns) == 1)
@@ -358,10 +400,6 @@ void Sensor(void *argument)
 			sender.v2 = rns.RNS_data.common_buffer[1].data;
 			sender.v3 = rns.RNS_data.common_buffer[2].data;
 			sender.v4 = rns.RNS_data.common_buffer[3].data;
-			char response[80];
-	//		snprintf(response, sizeof(response), "x: %.3f y: %.3f a: %.3f \n", sender.current_x_axis, sender.current_y_axis, sender.current_yaw);
-			snprintf(response, sizeof(response), "%.3f,%.3f,%.3f,%.3f\n", fabs(sender.v1), sender.v2, sender.v3, fabs(sender.v4));
-			UARTPrintString(&huart2, response);
 			osMutexRelease(sensorMutex);
 		}
 
@@ -387,13 +425,13 @@ void TIM6_DAC_IRQHandler(void)
 
 	sema1 = osSemaphoreRelease(Data_CountSemphrHandle);
 	led1=!led1;
-//	if(pid_flag)
-//	{
-//		PID(&imu_rotate);
-//	}
-//	else{
-//		PIDDelayInit(&imu_rotate);
-//	}
+	if(state == 1)
+	{
+		PID(&imu_rotate);
+	}
+	else{
+		PIDDelayInit(&imu_rotate);
+	}
 	PSxConnectionHandler(&ps4);
 	HAL_TIM_IRQHandler(&htim6);
 }
