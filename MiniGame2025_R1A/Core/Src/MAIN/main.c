@@ -33,7 +33,8 @@ int start_feed = 0;
 int pid_flag = 0;
 float previous_yaw;
 
-int state = 1;
+int target = 0;
+int state =1;
 float angle_i_want_previous = 180.0f;
 float angle_i_want_current = 180.0f;
 
@@ -215,32 +216,52 @@ void Motion(void *argument)
 //			else if(angle_i_want_current < 0.0f) angle_i_want_current = angle_i_want_current + 360.0f;
 //			if (angle_i_want_current>540.0f) angle_i_want_current = 180.0f;
 
-
-			if( ps4.joyR_x !=0)
+			if(imu_lock)
 			{
-				angle_i_want_current = receive.current_yaw;
+				if(ps4.button == R3)
+				{
+					while(ps4.button == R3);
+					angle_i_want_current = 90.0;
+					target = 1;
+
+				}
+				else if (ps4.button == L3)
+				{
+					while(ps4.button == L3);
+					angle_i_want_current = 180.0;
+					target = 1;
+
+				}
+				else
+				{
+					Err_angle =  angle_i_want_current  - current_yaw_angle;
+					wr = F_angle;
+				}
+
+			}
+			else
+			{
 				wr = -ps4.joyR_x;
+			}
+
+
+			if(ps4.joyL_x !=0 || ps4.joyL_y !=0 ||ps4.joyR_x !=0|| target == 1)
+			{
 				MODN(&modn);
 				RNSVelocity(vel1*3.0,vel2*3.0,vel3*3.0,vel4*3.0,&rns);
 			}
 			else
 			{
-
-//				if(ps4.button == CIRCLE)
-//				{
-//
-//				}
-				Err_angle =  angle_i_want_current  - current_yaw_angle;
-
-				wr = F_angle;
-				MODN(&modn);
-				RNSVelocity(vel1*3.0,vel2*3.0,vel3*3.0,vel4*3.0,&rns);
+				target = 0;
+				RNSStop(&rns);
 			}
 
+
+
 		}
-//		else if(state == 0)
-//		{
-//			float current_yaw_angle = receive.current_yaw;
+		else if(state == 0)
+		{
+			float current_yaw_angle = receive.current_yaw;
 //
 //			float rad = (current_yaw_angle-inital_yaw_angle)*(M_PI/180.0f);
 //
@@ -250,26 +271,26 @@ void Motion(void *argument)
 //			xr = x_vel*cos(rad) + (- y_vel*sin(rad));
 //			yr = -(x_vel*sin(rad) + y_vel*cos(rad));
 //			wr = -ps4.joyR_x;
-//
-//			/* for tuning only */
-//			//
-//			//				wr = ps4.joyR_2 - ps4.joyL_2;
-//			//				xr = ps4.joyR_x;
-//			//				yr = ps4.joyL_y;
-//
-//
-//			MODN(&modn);
-//
-//
-//			if((ps4.joyL_x !=0 || ps4.joyL_y !=0|| ps4.joyR_x !=0))
-//			{
-//				RNSVelocity(vel1*3.0,vel2*3.0,vel3*3.0,vel4*3.0,&rns);
-//			}
-//			else
-//			{
-//				RNSStop(&rns);
-//			}
-//		}
+
+			/* for tuning only */
+
+			wr = ps4.joyR_2 - ps4.joyL_2;
+			xr = ps4.joyR_x;
+			yr = ps4.joyL_y;
+
+
+			MODN(&modn);
+
+
+			if((ps4.joyL_x !=0 || ps4.joyL_y !=0|| ps4.joyR_x !=0))
+			{
+				RNSVelocity(vel1*3.0,vel2*3.0,vel3*3.0,vel4*3.0,&rns);
+			}
+			else
+			{
+				RNSStop(&rns);
+			}
+		}
 
 		/* Process data */
 
@@ -290,10 +311,12 @@ void Motion(void *argument)
 			RNSStop(&rns);
 			HAL_NVIC_SystemReset();
 			break;
-//		case UP:
-//			while(ps4.button == UP);
+		case CROSS:
+			while(ps4.button == CROSS);
 //			state =! state;
-//			break;
+			imu_lock =! imu_lock;
+			angle_i_want_current = receive.current_yaw;
+			break;
 		}
 		osDelay(10);
 	}
@@ -429,10 +452,6 @@ void Sensor(void *argument)
 			sender.current_yaw =  rns.RNS_data.common_buffer[0].data ;
 			sender.current_x_axis= rns.RNS_data.common_buffer[1].data;
 			sender.current_y_axis= rns.RNS_data.common_buffer[2].data;
-			char response[80];
-			snprintf(response, sizeof(response), "%.3f \n",sender.current_yaw);
-			//			snprintf(response, sizeof(response), "%.3f,%.3f,%.3f,%.3f\n", fabs(sender.v1), sender.v2, sender.v3, fabs(sender.v4));
-			UARTPrintString(&huart2, response);
 
 
 			osMutexRelease(sensorMutex);
@@ -445,6 +464,10 @@ void Sensor(void *argument)
 			sender.v3 = rns.RNS_data.common_buffer[2].data;
 			sender.v4 = rns.RNS_data.common_buffer[3].data;
 
+			char response[80];
+//			snprintf(response, sizeof(response), "%.3f \n",sender.current_yaw);
+						snprintf(response, sizeof(response), "%.3f,%.3f,%.3f,%.3f\n", fabs(sender.v1), sender.v2, sender.v3, fabs(sender.v4));
+			UARTPrintString(&huart2, response);
 			osMutexRelease(sensorMutex);
 		}
 

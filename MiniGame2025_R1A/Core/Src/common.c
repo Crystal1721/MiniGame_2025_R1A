@@ -52,8 +52,8 @@ void RNS_config(CAN_HandleTypeDef* hcanx) {
 	RNSSet(&rns, RNS_B_LEFT_VEL_SATEU, 1.0, 1.0 / 18.3077, 19999.0);
 	RNSSet(&rns, RNS_B_RIGHT_VEL_SATEU, 1.0, 1.0 / 18.7605, 19999.0);
 
-	RNSSet(&rns, RNS_F_LEFT_VEL_PID,  2.45, 3.2, 0.055);
-	RNSSet(&rns, RNS_F_RIGHT_VEL_PID, 3.23, 4.0, 0.055);
+	RNSSet(&rns, RNS_F_LEFT_VEL_PID,  1.5, 3.85, 0.065);
+	RNSSet(&rns, RNS_F_RIGHT_VEL_PID, 3.23, 4.0, 0.065);
 	RNSSet(&rns, RNS_B_LEFT_VEL_PID,  3.13, 3.7, 0.056);
 	RNSSet(&rns, RNS_B_RIGHT_VEL_PID, 3.08, 3.75, 0.056);
 

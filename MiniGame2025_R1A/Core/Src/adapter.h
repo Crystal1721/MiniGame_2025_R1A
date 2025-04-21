@@ -48,6 +48,7 @@ extern "C" {
 /* Exported functions prototypes ---------------------------------------------*/
 #include "R6091U/r6091u.h"
 
+
 /* Private defines -----------------------------------------------------------*/
 //#define FREERTOS
 

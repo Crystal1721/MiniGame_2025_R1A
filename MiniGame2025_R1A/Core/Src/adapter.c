@@ -237,7 +237,7 @@ void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	PACKET_t source;
 
 	if(hcan == &hcan1){
-		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0 , &CAN1RxMessage, aData);
+		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO1 , &CAN1RxMessage, aData);
 
 		if(CAN1RxMessage.IDE == CAN_ID_STD){
 			source = RNS_PACKET;
@@ -260,9 +260,9 @@ void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
 			}
 		}
 		CAN_PROCESS(source);
-		HAL_CAN_ActivateNotification(hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
+		HAL_CAN_ActivateNotification(hcan, CAN_IT_RX_FIFO1_MSG_PENDING);
 	}else{
-		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0 , &CAN2RxMessage, aData);
+		HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO1 , &CAN2RxMessage, aData);
 
 		if(CAN1RxMessage.IDE == CAN_ID_STD){
 			source = RNS_PACKET;
@@ -285,6 +285,6 @@ void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
 			}
 		}
 		CAN_PROCESS(source);
-		HAL_CAN_ActivateNotification(hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
+		HAL_CAN_ActivateNotification(hcan, CAN_IT_RX_FIFO1_MSG_PENDING);
 	}
 }
